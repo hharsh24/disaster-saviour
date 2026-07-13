@@ -526,6 +526,23 @@ app.post('/api/alert', async (req,res) => {
   res.json({ok:true,data:alert});
 });
 
+app.post('/api/action', async (req, res) => {
+  const { type, payload } = req.body || {};
+  const h = handlers[type];
+  if (!h) return res.status(400).json({ ok:false, message:`Unknown action type: ${type}` });
+  let captured = null;
+  const fakeWs = { readyState: WebSocket.OPEN, send: raw => { captured = JSON.parse(raw); } };
+  try {
+    await h(payload || {}, fakeWs);
+    if (captured && captured.type === 'ERROR') {
+      return res.status(400).json({ ok:false, message: captured.payload.message });
+    }
+    res.json({ ok:true, message:'Action processed', data: captured });
+  } catch (e) {
+    res.status(500).json({ ok:false, message: e.message });
+  }
+});
+
 app.get('/health', async (_,res) => {
   try {
     const { n } = await qOne('SELECT COUNT(*)::int AS n FROM zones');

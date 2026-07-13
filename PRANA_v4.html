@@ -1066,46 +1066,67 @@ setInterval(()=>{if(document.getElementById('pgtd')&&document.getElementById('pg
 // WEBSOCKET CONNECTION
 // ═══════════════════════════════════════════════════
 // Auto-detects the right backend address:
-// - If this file is opened from file:// or a different host (e.g. localhost:8080)
-//   while testing locally, it falls back to ws://localhost:3001.
-// - If this file is SERVED BY the same backend/host (e.g. your Render URL),
-//   it automatically uses that same host with wss:// (secure).
-const WS_URL = (location.protocol === 'file:' || !location.host)
-  ? 'ws://localhost:3001'
-  : `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`;
+// HTTPS polling instead of WebSocket — no persistent connection needed.
+// Uses the same origin the page was served from (works locally and on Render).
+const API_BASE = (location.protocol === 'file:' || !location.host)
+  ? 'http://localhost:3001'
+  : location.origin;
 const OPERATOR_ID = 'COMMANDER-' + Math.random().toString(36).slice(2,6).toUpperCase();
-let ws = null, wsReady = false;
+let wsReady = false; // kept as the "are we connected to a real backend" flag used elsewhere
+let pollTimer = null;
 let STATE = { zones:[], teams:[], drones:[], resources:[], alerts:[], errorLog:[], commandLog:[], connectedClients:1 };
 let dronesLaunched=false, rescueAlerted=false, feedInit=false, selFeedZone='SECTOR-A1', feedMode='both', feedRAFs={};
 let errFilter='ALL', selZ=null, selSZ='SECTOR-A1', bcastSeverity='CRITICAL';
 
+async function pollState(){
+  const b=document.getElementById('conn-banner');
+  try{
+    const r = await fetch(`${API_BASE}/api/state`, { cache:'no-store' });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.message||'Bad response');
+    if (!wsReady){
+      wsReady = true;
+      b.className='connected';
+      document.getElementById('conn-text').textContent='Connected to PRANA backend — live data (HTTPS polling)';
+      document.getElementById('conn-detail').textContent=`Operator: ${OPERATOR_ID}`;
+      clearInterval(window._simInterval);
+    }
+    handleMsg({type:'STATE_UPDATE', payload:j.data});
+  }catch(e){
+    if (wsReady){
+      wsReady=false;
+      b.className='disconnected';
+      document.getElementById('conn-text').textContent='Backend unreachable — retrying (using last known state)...';
+    } else {
+      b.className='disconnected';
+      document.getElementById('conn-text').textContent='Backend not found — running in simulation mode';
+      startSimulation();
+    }
+  }
+}
+
 function connectWS(){
   const b=document.getElementById('conn-banner');b.className='connecting';
   document.getElementById('conn-text').textContent='Connecting to PRANA backend...';
-  try{
-    ws=new WebSocket(WS_URL);
-    ws.onopen=()=>{
-      wsReady=true;b.className='connected';
-      document.getElementById('conn-text').textContent='Connected to PRANA backend — real-time data active';
-      document.getElementById('conn-detail').textContent=`Operator: ${OPERATOR_ID}`;
-      // Stop simulation if it was running
-      clearInterval(window._simInterval);
-    };
-    ws.onmessage=(e)=>{ try{handleMsg(JSON.parse(e.data));}catch(err){console.error(err);} };
-    ws.onclose=()=>{
-      wsReady=false;b.className='disconnected';
-      document.getElementById('conn-text').textContent='Backend disconnected — retrying in 3s (using last known state)...';
-      setTimeout(connectWS,3000);
-    };
-    ws.onerror=()=>{
-      wsReady=false;b.className='disconnected';
-      document.getElementById('conn-text').textContent='Backend not found — running in simulation mode';
-      startSimulation();
-    };
-  }catch(e){ startSimulation(); }
+  pollState();
+  clearInterval(pollTimer);
+  pollTimer = setInterval(pollState, 2000);
 }
 
-function sendWS(type,payload={}){ if(ws&&wsReady)ws.send(JSON.stringify({type,payload:{...payload,operatorId:OPERATOR_ID}})); }
+async function sendAction(type, payload){
+  try{
+    const r = await fetch(`${API_BASE}/api/action`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ type, payload:{...payload, operatorId: OPERATOR_ID} })
+    });
+    const j = await r.json();
+    if (!j.ok) { showToast('⚠ '+j.message,'err'); return; }
+    pollState(); // refresh immediately instead of waiting for next tick
+  }catch(e){ showToast('⚠ Action failed — backend unreachable','err'); }
+}
+
+function sendWS(type,payload={}){ sendAction(type,payload); }
 
 function handleMsg(msg){
   switch(msg.type){
@@ -1944,13 +1965,10 @@ function showToast(msg,cls){const t=document.getElementById('toast');t.textConte
 // ═══════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════
-// Standalone mode — skip WebSocket, go straight to full simulation
+// Try to connect to the real backend via HTTPS polling.
+// Falls back to standalone simulation automatically if unreachable.
 (function(){
-  const b=document.getElementById('conn-banner');
-  b.className='connected';
-  document.getElementById('conn-text').textContent='PRANA running in standalone simulation mode — all features active';
-  document.getElementById('conn-detail').textContent='Open via Node.js for real backend sync';
-  startSimulation();
+  connectWS();
 })();
 setTimeout(()=>{bSensBtns();},3500);
 </script>

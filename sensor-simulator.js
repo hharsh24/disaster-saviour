@@ -1,19 +1,17 @@
 /**
- * PRANA — Sensor Simulator
+ * PRANA — Sensor Simulator (HTTPS version)
  * ─────────────────────────────────────────
  * Simulates real IoT sensor data being pushed
- * to the backend every second.
+ * to the backend every 2 seconds via plain HTTPS POST
+ * (no WebSocket needed).
  *
  * Run: node sensor-simulator.js
  *
- * In production, replace this with your actual
- * Python/Arduino/Raspberry Pi sensor scripts.
+ * Change BACKEND_URL below to 'http://localhost:3001' for local testing.
  */
 
-const WebSocket = require('ws');
-
-const WS_URL    = 'wss://prana-the-decider.onrender.com';
-const ZONES     = ['SECTOR-A1','SECTOR-B2','SECTOR-C3','SECTOR-D1','SECTOR-E2'];
+const BACKEND_URL = 'https://prana-the-decider.onrender.com';
+const ZONES       = ['SECTOR-A1','SECTOR-B2','SECTOR-C3','SECTOR-D1','SECTOR-E2'];
 
 // Sensor base values per zone
 const BASE = {
@@ -30,59 +28,31 @@ const current = JSON.parse(JSON.stringify(BASE));
 function clamp(v, mn, mx) { return Math.max(mn, Math.min(mx, v)); }
 function rnd(a, b) { return Math.random() * (b - a) + a; }
 
-let ws;
-let connected = false;
+console.log(`[SIM] Pushing sensor data to ${BACKEND_URL} every 2 seconds via HTTPS...\n`);
 
-function connect() {
-  console.log(`[SIM] Connecting to ${WS_URL}...`);
-  ws = new WebSocket(WS_URL);
+async function pushTick() {
+  const zoneId = ZONES[Math.floor(Math.random() * ZONES.length)];
+  const c      = current[zoneId];
 
-  ws.on('open', () => {
-    connected = true;
-    console.log('[SIM] ✓ Connected to PRANA backend');
-    console.log('[SIM] Pushing sensor data every 2 seconds...\n');
-    startPushing();
-  });
+  c.thermal   = +clamp(c.thermal   + rnd(-.12, .12),  33,   39  ).toFixed(2);
+  c.sound     = +clamp(c.sound     + rnd(-2,   2  ),   5,   90  ).toFixed(0);
+  c.vibration = +clamp(c.vibration + rnd(-3,   3  ),   1,   90  ).toFixed(0);
+  c.co2       = +clamp(c.co2       + rnd(-15,  15 ), 400, 1800  ).toFixed(0);
+  c.motion    = +clamp(c.motion    + rnd(-.3,  .3 ),   0,   15  ).toFixed(2);
 
-  ws.on('close', () => {
-    connected = false;
-    console.log('[SIM] Disconnected. Retrying in 3s...');
-    setTimeout(connect, 3000);
-  });
-
-  ws.on('error', (err) => {
-    console.error('[SIM] Error:', err.message);
-  });
-}
-
-function startPushing() {
-  setInterval(() => {
-    if (!connected) return;
-
-    // Pick a random zone to update
-    const zoneId = ZONES[Math.floor(Math.random() * ZONES.length)];
-    const c      = current[zoneId];
-
-    // Slightly randomize each reading
-    c.thermal   = +clamp(c.thermal   + rnd(-.12, .12),  33,   39  ).toFixed(2);
-    c.sound     = +clamp(c.sound     + rnd(-2,   2  ),   5,   90  ).toFixed(0);
-    c.vibration = +clamp(c.vibration + rnd(-3,   3  ),   1,   90  ).toFixed(0);
-    c.co2       = +clamp(c.co2       + rnd(-15,  15 ), 400, 1800  ).toFixed(0);
-    c.motion    = +clamp(c.motion    + rnd(-.3,  .3 ),   0,   15  ).toFixed(2);
-
-    const msg = {
-      type:    'SENSOR_UPDATE',
-      payload: {
-        zoneId,
-        sensors: { ...c },
-        source:  'sensor-simulator',
-      },
-    };
-
-    ws.send(JSON.stringify(msg));
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/sensor`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ zoneId, sensors: { ...c }, source: 'sensor-simulator' }),
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.message || 'Unknown error');
     console.log(`[SIM] ${zoneId} → thermal:${c.thermal}°C | sound:${c.sound}dB | co2:${c.co2}ppm`);
-
-  }, 2000);
+  } catch (e) {
+    console.error(`[SIM] Push failed: ${e.message}`);
+  }
 }
 
-connect();
+setInterval(pushTick, 2000);
+pushTick();

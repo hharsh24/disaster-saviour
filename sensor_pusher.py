@@ -179,7 +179,7 @@ def run_multi_zone(zones, interval=2.0):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="PRANA Sensor Pusher")
-    parser.add_argument("--mode",     default="websocket", choices=["websocket","rest","multi"])
+    parser.add_argument("--mode",     default="rest", choices=["websocket","rest","multi"])
     parser.add_argument("--zone",     default=ZONE_ID)
     parser.add_argument("--interval", default=1.0, type=float)
     args = parser.parse_args()
