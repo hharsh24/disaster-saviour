@@ -361,12 +361,17 @@ const handlers = {
 
   async SENSOR_UPDATE({zoneId,sensors}, ws) {
     const zone = await qOne('SELECT id FROM zones WHERE id=$1', [zoneId]);
-    if (!zone) return sendTo(ws,{type:'ERROR',payload:{message:`Zone ${zoneId} not found`}});
+    if (!zone) {
+      const message = `Zone ${zoneId} not found`;
+      if (ws) return sendTo(ws,{type:'ERROR',payload:{message}});
+      throw new Error(message);
+    }
     let clean;
     try {
       clean = sanitizeSensors(sensors || {});
     } catch (e) {
-      return sendTo(ws,{type:'ERROR',payload:{message:e.message}});
+      if (ws) return sendTo(ws,{type:'ERROR',payload:{message:e.message}});
+      throw e;
     }
     await q(
       `UPDATE zones SET
