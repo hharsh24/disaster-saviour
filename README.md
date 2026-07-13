@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # PRANA Backend — Setup & Integration Guide
 
 ## What You Need
@@ -248,3 +249,6 @@ const WS_URL = 'wss://your-server-ip-or-domain.com/ws';
 Multiple laptops/tablets on the same WiFi network can all open
 PRANA_v4.html and connect to the same backend — they all see
 each other's actions in real time.
+=======
+# prana_the_decider
+>>>>>>> 0c484527ef7d67225cc12fd1fd12f5582c89f5c9
