@@ -12,7 +12,7 @@
 
 const WebSocket = require('ws');
 
-const WS_URL    = 'ws://localhost:3001';
+const WS_URL    = 'wss://prana-the-decider.onrender.com';
 const ZONES     = ['SECTOR-A1','SECTOR-B2','SECTOR-C3','SECTOR-D1','SECTOR-E2'];
 
 // Sensor base values per zone
