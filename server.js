@@ -178,6 +178,9 @@ const wss    = new WebSocketServer({ server });
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'PRANA_v4.html'));
+});
 
 function clientCount() { return [...wss.clients].filter(c => c.readyState === WebSocket.OPEN).length; }
 function sendTo(ws, msg) { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg)); }
