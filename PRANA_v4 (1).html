@@ -1,0 +1,1976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>PRANA — Command System</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#02050a;--s1:#060c14;--s2:#0a1220;--s3:#0d1628;--s4:#101c30;
+  --ln:rgba(255,255,255,.07);--ln2:rgba(255,255,255,.12);
+  --g:#00c882;--g2:#00e896;--gd:rgba(0,200,130,.14);
+  --r:#f03e5c;--rd:rgba(240,62,92,.14);
+  --y:#e8930a;--yd:rgba(232,147,10,.14);
+  --b:#2b6fff;--bd:rgba(43,111,255,.14);
+  --v:#8b52e8;--vd:rgba(139,82,232,.14);
+  --t0:#e0ede8;--t1:#7aa890;--t2:#304d44;
+  --mono:'JetBrains Mono',monospace;--ui:'Inter',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--t0);font-family:var(--ui);font-size:15px;}
+::-webkit-scrollbar{width:3px;}::-webkit-scrollbar-thumb{background:rgba(0,200,130,.25);border-radius:3px;}
+
+/* CONNECTION STATUS */
+#conn-banner{position:fixed;top:0;left:0;right:0;z-index:9999;padding:8px 20px;font-family:var(--mono);font-size:11px;display:flex;align-items:center;gap:8px;transition:all .3s;}
+#conn-banner.connected{background:rgba(0,200,130,.12);color:var(--g);border-bottom:1px solid rgba(0,200,130,.2);}
+#conn-banner.disconnected{background:rgba(240,62,92,.15);color:var(--r);border-bottom:1px solid rgba(240,62,92,.3);}
+#conn-banner.connecting{background:rgba(232,147,10,.12);color:var(--y);border-bottom:1px solid rgba(232,147,10,.2);}
+.conn-dot{width:7px;height:7px;border-radius:50%;background:currentColor;animation:blink 1.4s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.2;}}
+
+.scr{position:fixed;inset:0;top:36px;display:flex;align-items:center;justify-content:center;flex-direction:column;transition:opacity .5s,transform .5s;z-index:10;}
+.scr.out{opacity:0;transform:scale(.98);pointer-events:none;}
+.scr.off{display:none;}
+
+/* SPLASH */
+#scr-splash{background:var(--bg);z-index:40;}
+.sp-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(0,200,130,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,200,130,.025) 1px,transparent 1px);background-size:64px 64px;}
+.sp-rings{position:absolute;inset:0;overflow:hidden;}
+.sr{position:absolute;top:50%;left:50%;border-radius:50%;border:1px solid;transform:translate(-50%,-50%);animation:rexp 4s ease-out infinite;}
+.sr:nth-child(1){width:140px;height:140px;border-color:rgba(0,200,130,.3);}
+.sr:nth-child(2){width:320px;height:320px;border-color:rgba(0,200,130,.15);animation-delay:.6s;}
+.sr:nth-child(3){width:560px;height:560px;border-color:rgba(0,200,130,.07);animation-delay:1.2s;}
+.sr:nth-child(4){width:820px;height:820px;border-color:rgba(0,200,130,.03);animation-delay:1.8s;}
+@keyframes rexp{0%{opacity:0;transform:translate(-50%,-50%) scale(.7);}30%{opacity:1;}100%{opacity:0;transform:translate(-50%,-50%) scale(1.2);}}
+.sp-body{position:relative;z-index:2;text-align:center;display:flex;flex-direction:column;align-items:center;}
+.sp-mark{width:72px;height:72px;border-radius:50%;border:2px solid rgba(0,200,130,.4);display:grid;place-items:center;margin-bottom:32px;position:relative;}
+.sp-mark::after{content:'';position:absolute;inset:-10px;border-radius:50%;border:1px solid rgba(0,200,130,.12);animation:rpulse 2s ease-in-out infinite;}
+.sp-dot{width:26px;height:26px;border-radius:50%;background:var(--g);opacity:.7;animation:dpulse 1.8s ease-in-out infinite;}
+@keyframes rpulse{0%,100%{transform:scale(1);}50%{transform:scale(1.1);}}
+@keyframes dpulse{0%,100%{transform:scale(1);opacity:.7;}50%{transform:scale(1.35);opacity:1;}}
+.sp-wordmark{font-size:80px;font-weight:800;letter-spacing:.18em;color:var(--g2);line-height:1;margin-bottom:12px;animation:fadeup .8s ease both;}
+.sp-full{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--t2);margin-bottom:6px;animation:fadeup .8s .1s ease both;}
+.sp-desc{font-size:15px;color:var(--t1);animation:fadeup .8s .2s ease both;}
+@keyframes fadeup{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+.sp-boot{margin-top:54px;display:flex;flex-direction:column;align-items:center;gap:12px;animation:fadeup .8s .36s ease both;}
+.sp-bar{width:260px;height:2px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;}
+.sp-fill{height:100%;background:linear-gradient(90deg,var(--g),var(--g2));width:0;animation:bfill 2.4s cubic-bezier(.4,0,.2,1) .5s forwards;}
+@keyframes bfill{to{width:100%;}}
+.sp-msg{font-family:var(--mono);font-size:10px;color:var(--t2);letter-spacing:.12em;}
+
+/* ALERT */
+#scr-alert{background:rgba(2,5,10,.97);z-index:30;backdrop-filter:blur(10px);}
+.al-bg{position:absolute;inset:0;background:radial-gradient(ellipse 55% 40% at 50% 45%,rgba(240,62,92,.1) 0%,transparent 70%);}
+.al-indicator{display:flex;align-items:center;gap:5px;margin-bottom:28px;}
+.al-bar{width:4px;background:var(--r);border-radius:2px;animation:abar .45s ease-in-out infinite alternate;}
+.al-bar:nth-child(1){height:16px;}.al-bar:nth-child(2){height:32px;animation-delay:.07s;}.al-bar:nth-child(3){height:48px;animation-delay:.14s;}.al-bar:nth-child(4){height:32px;animation-delay:.07s;}.al-bar:nth-child(5){height:16px;}
+@keyframes abar{from{opacity:.2;transform:scaleY(.5);}to{opacity:1;transform:scaleY(1);}}
+.al-badge{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--r);margin-bottom:20px;animation:ablink 1.1s infinite;}
+@keyframes ablink{0%,100%{opacity:1;}50%{opacity:.25;}}
+.al-title{font-size:46px;font-weight:800;line-height:1.15;text-align:center;margin-bottom:10px;}
+.al-loc{color:var(--r);}
+.al-stats{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin:22px 0 30px;}
+.ast{background:rgba(240,62,92,.06);border:1px solid rgba(240,62,92,.18);border-radius:12px;padding:12px 20px;text-align:center;min-width:108px;}
+.ast-l{font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:rgba(240,62,92,.65);margin-bottom:5px;}
+.ast-v{font-size:19px;font-weight:700;}
+.al-desc{font-size:13px;color:var(--t1);max-width:500px;text-align:center;line-height:1.9;margin-bottom:34px;}
+.btn-r{padding:14px 40px;background:var(--r);border:none;border-radius:8px;color:#fff;font-family:var(--ui);font-weight:700;font-size:14px;cursor:pointer;transition:all .2s;}
+.btn-r:hover{background:#f75070;box-shadow:0 8px 28px rgba(240,62,92,.35);}
+
+/* ACTIONS */
+#scr-actions{background:var(--bg);z-index:20;padding:28px;overflow-y:auto;}
+.ac-bg{position:absolute;inset:0;background:radial-gradient(ellipse 48% 55% at 18% 48%,rgba(0,200,130,.06) 0%,transparent 62%);}
+.ac-head{text-align:center;margin-bottom:20px;position:relative;z-index:2;}
+.ac-eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.22em;color:var(--r);margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:10px;}
+.ac-eyebrow::before,.ac-eyebrow::after{content:'';flex:0 0 32px;height:1px;background:var(--r);opacity:.35;}
+.ac-title{font-size:32px;font-weight:800;margin-bottom:8px;}
+.ac-sub{font-family:var(--mono);font-size:10px;color:var(--t2);}
+.lock-status{font-family:var(--mono);font-size:11px;padding:9px 22px;border-radius:22px;background:var(--s2);border:1px solid var(--ln);color:var(--t2);display:inline-flex;align-items:center;gap:8px;margin-bottom:18px;transition:all .3s;}
+.lock-status.unlocked{color:var(--g);border-color:rgba(0,200,130,.35);background:var(--gd);}
+.lock-dot{width:7px;height:7px;border-radius:50%;background:var(--r);transition:background .3s;}
+.lock-status.unlocked .lock-dot{background:var(--g);}
+.ac-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:100%;max-width:820px;position:relative;z-index:2;margin-bottom:24px;}
+.acard{background:var(--s2);border:1px solid var(--ln);border-radius:12px;padding:20px 16px;text-align:center;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
+.acard.required{border-color:rgba(240,62,92,.4);}
+.acard:hover{transform:translateY(-2px);}
+.acard.ar:hover{border-color:rgba(240,62,92,.4);background:rgba(240,62,92,.04);}
+.acard.ay:hover{border-color:rgba(232,147,10,.4);background:rgba(232,147,10,.04);}
+.acard.ab:hover{border-color:rgba(43,111,255,.4);background:rgba(43,111,255,.04);}
+.acard.ag:hover{border-color:rgba(0,200,130,.4);background:rgba(0,200,130,.04);}
+.acard.av:hover{border-color:rgba(139,82,232,.4);background:rgba(139,82,232,.04);}
+.acard.sent{opacity:.42;pointer-events:none;}
+.acard.sent::after{content:'ALERTED ✓';position:absolute;top:9px;right:9px;font-family:var(--mono);font-size:8px;padding:2px 7px;border-radius:6px;background:var(--gd);color:var(--g);border:1px solid rgba(0,200,130,.25);}
+.req-badge{position:absolute;top:9px;left:9px;font-family:var(--mono);font-size:8px;padding:2px 6px;border-radius:5px;background:var(--rd);color:var(--r);}
+.ac-ico{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;margin:0 auto 12px;}
+.ar .ac-ico{background:var(--rd);}.ay .ac-ico{background:var(--yd);}.ab .ac-ico{background:var(--bd);}.ag .ac-ico{background:var(--gd);}.av .ac-ico{background:var(--vd);}
+.ac-ttl{font-size:14px;font-weight:700;margin-bottom:5px;}
+.ar .ac-ttl{color:var(--r);}.ay .ac-ttl{color:var(--y);}.ab .ac-ttl{color:var(--b);}.ag .ac-ttl{color:var(--g);}.av .ac-ttl{color:var(--v);}
+.ac-dsc{font-family:var(--mono);font-size:9px;color:var(--t2);line-height:1.75;margin-bottom:12px;}
+.ac-btn{padding:6px 14px;border-radius:6px;font-family:var(--mono);font-size:9px;border:1px solid;background:transparent;cursor:pointer;}
+.ar .ac-btn{color:var(--r);border-color:rgba(240,62,92,.3);}.ay .ac-btn{color:var(--y);border-color:rgba(232,147,10,.3);}
+.ab .ac-btn{color:var(--b);border-color:rgba(43,111,255,.3);}.ag .ac-btn{color:var(--g);border-color:rgba(0,200,130,.3);}.av .ac-btn{color:var(--v);border-color:rgba(139,82,232,.3);}
+.ac-foot{display:flex;align-items:center;gap:16px;position:relative;z-index:2;}
+.btn-g{padding:12px 34px;background:var(--g);border:none;border-radius:8px;color:#020a05;font-family:var(--ui);font-weight:700;font-size:14px;cursor:pointer;transition:all .2s;}
+.btn-g:hover{background:var(--g2);box-shadow:0 6px 24px rgba(0,200,130,.32);}
+.btn-g.locked-btn{background:var(--s3);color:var(--t2);cursor:not-allowed;border:1px solid var(--ln);}
+.btn-skip{font-family:var(--mono);font-size:11px;color:var(--t2);cursor:pointer;text-decoration:underline;text-underline-offset:3px;}
+.btn-skip.hidden{visibility:hidden;}
+
+#notifs{position:fixed;top:42px;right:16px;z-index:999;display:flex;flex-direction:column;gap:6px;pointer-events:none;}
+.notif{background:var(--s2);border:1px solid var(--ln);border-radius:10px;padding:9px 13px;display:flex;gap:9px;font-family:var(--mono);font-size:11px;animation:nin .28s ease;max-width:280px;}
+.notif.ng{border-left:3px solid var(--g);}.notif.nr{border-left:3px solid var(--r);}.notif.ny{border-left:3px solid var(--y);}.notif.nb{border-left:3px solid var(--b);}
+.n-ico{font-size:14px;line-height:1.4;}.n-body{color:var(--t1);line-height:1.6;}.n-body strong{color:var(--t0);display:block;}
+@keyframes nin{from{opacity:0;transform:translateX(16px);}to{opacity:1;transform:translateX(0);}}
+
+/* DASHBOARD */
+#scr-dash{z-index:5;flex-direction:column;justify-content:flex-start;align-items:stretch;background:var(--bg);}
+#topbar{height:54px;min-height:54px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:var(--s1);border-bottom:1px solid var(--ln);flex-shrink:0;}
+.tb-brand{display:flex;align-items:center;gap:12px;}
+.tb-orb{width:28px;height:28px;border-radius:50%;border:1.5px solid rgba(0,200,130,.4);display:grid;place-items:center;}
+.tb-core{width:9px;height:9px;border-radius:50%;background:var(--g);opacity:.75;animation:dpulse 1.8s ease-in-out infinite;}
+.tb-name{font-size:19px;font-weight:800;letter-spacing:.12em;color:var(--g2);}
+.tb-sub{font-family:var(--mono);font-size:8px;color:var(--t2);letter-spacing:.1em;margin-top:2px;}
+.tb-chips{display:flex;gap:5px;}
+.chip{display:flex;align-items:center;gap:4px;padding:3px 11px;border-radius:14px;font-family:var(--mono);font-size:10px;}
+.cg{background:var(--gd);color:var(--g);border:1px solid rgba(0,200,130,.2);}
+.cr{background:var(--rd);color:var(--r);border:1px solid rgba(240,62,92,.2);}
+.cy{background:var(--yd);color:var(--y);border:1px solid rgba(232,147,10,.2);}
+.cb{background:var(--bd);color:var(--b);border:1px solid rgba(43,111,255,.2);}
+.cw{background:rgba(255,255,255,.06);color:var(--t1);border:1px solid var(--ln);}
+.led{width:5px;height:5px;border-radius:50%;background:currentColor;animation:blink 1.6s infinite;}
+.tb-right{display:flex;align-items:center;gap:10px;}
+#clk{font-family:var(--mono);font-size:13px;color:var(--g);letter-spacing:.1em;}
+.close-btn{padding:5px 13px;background:rgba(240,62,92,.1);border:1px solid rgba(240,62,92,.3);border-radius:6px;color:var(--r);font-family:var(--mono);font-size:11px;cursor:pointer;transition:all .18s;}
+.close-btn:hover{background:rgba(240,62,92,.2);}
+#err-btn{position:relative;padding:5px 13px;background:var(--s2);border:1px solid var(--ln);border-radius:6px;color:var(--t1);font-family:var(--mono);font-size:11px;cursor:pointer;transition:all .18s;}
+#err-btn:hover{background:var(--s3);}
+#err-btn.has-errors{border-color:rgba(240,62,92,.4);color:var(--r);background:rgba(240,62,92,.08);}
+.err-count{position:absolute;top:-6px;right:-6px;background:var(--r);color:#fff;font-size:9px;font-family:var(--mono);width:16px;height:16px;border-radius:50%;display:grid;place-items:center;}
+#navbar{height:42px;min-height:42px;display:flex;align-items:stretch;padding:0 20px;background:var(--s1);border-bottom:1px solid var(--ln);flex-shrink:0;}
+.ntab{display:flex;align-items:center;gap:6px;padding:0 16px;font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;border-bottom:2px solid transparent;letter-spacing:.03em;transition:color .18s,border-color .18s;white-space:nowrap;}
+.ntab:hover{color:var(--t0);}.ntab.on{color:var(--g2);border-bottom-color:var(--g);}
+#pages{flex:1;overflow:hidden;display:flex;flex-direction:column;}
+.pg{display:none;flex:1;overflow:hidden;}.pg.on{display:flex;}
+.fl{display:flex;flex-direction:column;overflow:hidden;}
+.scrl{overflow-y:auto;flex:1;}
+.pane{background:var(--s1);border-right:1px solid var(--ln);}
+.ph{padding:11px 15px;border-bottom:1px solid var(--ln);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.ph-t{font-family:var(--mono);font-size:10px;font-weight:500;color:var(--t2);letter-spacing:.12em;text-transform:uppercase;}
+.pill{display:inline-flex;align-items:center;padding:2px 8px;border-radius:9px;font-family:var(--mono);font-size:9px;}
+.pg2{background:var(--gd);color:var(--g);border:1px solid rgba(0,200,130,.2);}
+.pr2{background:var(--rd);color:var(--r);border:1px solid rgba(240,62,92,.2);}
+.py2{background:var(--yd);color:var(--y);border:1px solid rgba(232,147,10,.2);}
+.pb2{background:var(--bd);color:var(--b);border:1px solid rgba(43,111,255,.2);}
+.pv2{background:var(--vd);color:var(--v);border:1px solid rgba(139,82,232,.2);}
+.seclbl{font-family:var(--mono);font-size:10px;font-weight:600;color:var(--t2);letter-spacing:.12em;text-transform:uppercase;margin-bottom:11px;}
+
+/* OVERVIEW */
+#pgov{flex-direction:column;overflow-y:auto;padding:18px;gap:16px;}
+.kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.kpi-card{background:var(--s2);border:1px solid var(--ln);border-radius:12px;padding:20px 22px;position:relative;overflow:hidden;}
+.kpi-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;border-radius:0 0 12px 12px;}
+.kpi-card.kc-g::after{background:var(--g);}.kpi-card.kc-r::after{background:var(--r);}.kpi-card.kc-y::after{background:var(--y);}.kpi-card.kc-b::after{background:var(--b);}.kpi-card.kc-v::after{background:var(--v);}
+.kpi-lbl{font-family:var(--mono);font-size:10px;color:var(--t2);letter-spacing:.14em;text-transform:uppercase;margin-bottom:10px;}
+.kpi-val{font-size:40px;font-weight:800;line-height:1;margin-bottom:6px;}
+.kpi-card.kc-g .kpi-val{color:var(--g);}.kpi-card.kc-r .kpi-val{color:var(--r);}.kpi-card.kc-y .kpi-val{color:var(--y);}.kpi-card.kc-b .kpi-val{color:var(--b);}.kpi-card.kc-v .kpi-val{color:var(--v);}
+.kpi-sub{font-family:var(--mono);font-size:11px;color:var(--t1);}
+/* Dynamic RA */
+.ra-section{background:var(--s2);border:1px solid var(--ln);border-radius:12px;padding:20px 22px;}
+.ra-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+.ra-title{font-size:14px;font-weight:700;color:var(--g);display:flex;align-items:center;gap:10px;}
+.ra-title::before{content:'';width:3px;height:16px;background:var(--g);border-radius:2px;}
+.ra-live-badge{font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:6px;background:var(--gd);color:var(--g);border:1px solid rgba(0,200,130,.25);}
+.ra-row{display:grid;grid-template-columns:180px 1fr 70px 90px 90px;align-items:center;gap:12px;padding:10px 0;}
+.ra-row+.ra-row{border-top:1px solid var(--ln);}
+.ra-name-wrap{display:flex;flex-direction:column;gap:2px;}
+.ra-name{font-size:13px;font-weight:600;}
+.ra-sub{font-family:var(--mono);font-size:9px;color:var(--t2);}
+.ra-bar-outer{height:10px;background:rgba(255,255,255,.06);border-radius:5px;overflow:hidden;position:relative;cursor:pointer;}
+.ra-bar-inner{height:100%;border-radius:5px;transition:width .7s cubic-bezier(.4,0,.2,1);}
+.ra-bar-outer:hover .ra-bar-inner{filter:brightness(1.2);}
+.ra-qty{font-family:var(--mono);font-size:12px;font-weight:700;text-align:right;}
+.ra-status{font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:5px;text-align:center;}
+.ra-status.full{background:rgba(240,62,92,.15);color:var(--r);}
+.ra-status.good{background:rgba(0,200,130,.12);color:var(--g);}
+.ra-status.low{background:rgba(232,147,10,.12);color:var(--y);}
+.ra-ctrl-btn{padding:4px 10px;background:transparent;border:1px solid var(--ln);border-radius:5px;color:var(--t2);font-family:var(--mono);font-size:9px;cursor:pointer;transition:all .14s;display:flex;align-items:center;gap:4px;}
+.ra-ctrl-btn:hover{background:var(--s3);border-color:var(--ln2);color:var(--t0);}
+/* survival */
+.survival-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;}
+.sv-card{background:var(--s2);border:1px solid var(--ln);border-radius:12px;padding:15px;}
+.sv-zone{font-family:var(--mono);font-size:10px;color:var(--t2);margin-bottom:6px;}
+.sv-pct{font-size:26px;font-weight:800;margin-bottom:5px;}
+.sv-bar{height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;margin-bottom:5px;}
+.sv-fill{height:100%;border-radius:2px;}
+.sv-humans{font-family:var(--mono);font-size:9px;color:var(--t1);margin-bottom:2px;}
+.sv-status{font-family:var(--mono);font-size:9px;font-weight:600;}
+.sv-actions{display:flex;gap:4px;margin-top:8px;}
+.sv-act-btn{flex:1;padding:4px 0;background:transparent;border:1px solid var(--ln);border-radius:4px;font-family:var(--mono);font-size:9px;color:var(--t2);cursor:pointer;transition:all .14s;}
+.sv-act-btn:hover{background:var(--s3);}
+.sv-act-btn.assign{border-color:rgba(0,200,130,.3);color:var(--g);}
+.sv-act-btn.assign.done{background:var(--gd);color:var(--g);}
+
+/* DISPATCH with MAP */
+#pgd{flex-direction:row;}
+#mwrap{flex:1;position:relative;overflow:hidden;}
+#mcanvas{display:block;width:100%;height:100%;}
+#zpop{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);background:rgba(6,12,20,.98);border:1px solid rgba(0,200,130,.25);border-radius:14px;padding:16px;min-width:380px;display:none;backdrop-filter:blur(12px);z-index:10;}
+.zph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;}
+.zpname{font-weight:700;font-size:15px;font-family:var(--mono);}.zpclose{background:none;border:none;color:var(--t2);cursor:pointer;font-size:16px;}
+.zpgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:12px;}
+.zpm{background:var(--s3);border:1px solid var(--ln);border-radius:6px;padding:9px;}
+.zpml{font-family:var(--mono);font-size:8px;color:var(--t2);letter-spacing:.06em;margin-bottom:3px;}.zpmv{font-size:19px;font-weight:700;}
+.zpsens{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:12px;}
+.zps{background:var(--s3);border:1px solid var(--ln);border-radius:6px;padding:7px 9px;}
+.zpsl{font-family:var(--mono);font-size:8px;color:var(--t2);margin-bottom:2px;}.zpsv{font-family:var(--mono);font-size:12px;font-weight:600;}
+.zp-actions{display:flex;gap:8px;}
+.zp-action-btn{flex:1;padding:8px 0;border:1px solid;border-radius:6px;font-family:var(--mono);font-size:10px;cursor:pointer;font-weight:600;transition:all .14s;}
+.zp-action-btn.dispatch{color:var(--g);border-color:rgba(0,200,130,.3);background:transparent;}
+.zp-action-btn.dispatch:hover{background:var(--gd);}
+.zp-action-btn.dispatch.done{background:var(--gd);opacity:.6;cursor:default;}
+.zp-action-btn.recall{color:var(--y);border-color:rgba(232,147,10,.3);background:transparent;}
+.zp-action-btn.recall:hover{background:var(--yd);}
+.zcard{margin:6px;border-radius:8px;border:1px solid var(--ln);background:var(--s2);cursor:pointer;transition:all .16s;overflow:hidden;position:relative;}
+.zcard::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;}
+.zcard.zr::before{background:var(--r);}.zcard.zy::before{background:var(--y);}.zcard.zb::before{background:var(--b);}.zcard.zt::before{background:var(--t2);}
+.zcard:hover,.zcard.zon{border-color:rgba(0,200,130,.3);background:var(--s3);}
+.zch{display:flex;align-items:center;justify-content:space-between;padding:9px 13px 4px 15px;}
+.zcid{font-weight:700;font-size:12px;letter-spacing:.03em;font-family:var(--mono);}
+.zcid.zr{color:var(--r);}.zcid.zy{color:var(--y);}.zcid.zb{color:var(--b);}.zcid.zt{color:var(--t2);}
+.rnk{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-family:var(--mono);font-size:10px;font-weight:700;}
+.zcb{padding:0 15px 11px;}
+.zcrow{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:6px;}
+.zcs .lbl{font-family:var(--mono);font-size:8px;color:var(--t2);letter-spacing:.05em;margin-bottom:1px;}
+.zcs .val{font-family:var(--mono);font-size:12px;font-weight:700;}
+.sbar{height:3px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;margin:3px 0;}
+.sbf{height:100%;border-radius:2px;}
+.zcft{display:flex;align-items:center;justify-content:space-between;margin-top:5px;}
+.ztag{font-family:var(--mono);font-size:8px;padding:2px 6px;border-radius:5px;}
+.tc{background:var(--rd);color:var(--r);}.tq{background:var(--yd);color:var(--y);}
+.zteam{font-family:var(--mono);font-size:9px;}.zteam.yes{color:var(--g);}.zteam.no{color:var(--t2);}
+.dbtn{width:100%;margin-top:7px;padding:7px 0;border:1px solid rgba(0,200,130,.2);border-radius:5px;background:transparent;color:var(--g);font-family:var(--mono);font-size:9px;cursor:pointer;transition:all .14s;font-weight:600;}
+.dbtn:hover{background:var(--gd);}.dbtn.done{background:rgba(0,200,130,.05);color:var(--t2);border-color:var(--ln);cursor:default;}
+.tcard{margin:6px;border-radius:8px;border:1px solid var(--ln);background:var(--s2);padding:12px;}
+.tctop{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.tcname{font-weight:700;font-size:13px;}.tcspec{font-family:var(--mono);font-size:9px;color:var(--t2);margin-top:1px;}
+.tcmem{font-family:var(--mono);font-size:9px;color:var(--t1);margin-bottom:5px;}.tczone{font-family:var(--mono);font-size:9px;color:var(--g);margin-top:2px;}
+.tcbtn{width:100%;padding:7px 0;border:1px solid rgba(0,200,130,.2);border-radius:5px;background:transparent;color:var(--g);font-family:var(--mono);font-size:9px;cursor:pointer;margin-top:7px;transition:all .14s;font-weight:600;}
+.tcbtn:hover:not(:disabled){background:var(--gd);}.tcbtn:disabled{opacity:.25;cursor:not-allowed;}
+.tc-recall-btn{width:100%;padding:6px 0;border:1px solid rgba(232,147,10,.2);border-radius:5px;background:transparent;color:var(--y);font-family:var(--mono);font-size:9px;cursor:pointer;margin-top:4px;transition:all .14s;}
+.tc-recall-btn:hover{background:var(--yd);}
+#airec{padding:12px;border-top:1px solid var(--ln);flex-shrink:0;}
+.arhed{font-family:var(--mono);font-size:9px;color:var(--t2);letter-spacing:.1em;text-transform:uppercase;margin-bottom:7px;display:flex;align-items:center;gap:5px;}
+.arhed::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--g);animation:blink 1.6s infinite;}
+.arrow{display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid var(--ln);}.arrow:last-child{border-bottom:none;}
+.arrn{font-family:var(--mono);font-size:9px;color:var(--t2);min-width:16px;}.arinfo{flex:1;}
+.arzn{font-size:11px;font-weight:600;font-family:var(--mono);}.armeta{font-family:var(--mono);font-size:8px;color:var(--t2);}
+.arsc{font-family:var(--mono);font-size:11px;font-weight:700;}
+
+/* LIVE FEED */
+#pglf{flex-direction:column;overflow:hidden;}
+.feed-zone-tabs{display:flex;gap:7px;padding:10px 15px;background:var(--s1);border-bottom:1px solid var(--ln);flex-shrink:0;overflow-x:auto;align-items:center;}
+.fztab{padding:5px 14px;border-radius:7px;font-family:var(--mono);font-size:10px;border:1px solid var(--ln);background:transparent;color:var(--t2);cursor:pointer;transition:all .14s;white-space:nowrap;}
+.fztab.on{background:var(--gd);color:var(--g);border-color:rgba(0,200,130,.3);}
+.feed-mode-btns{display:flex;gap:5px;margin-left:auto;}
+.fmb{padding:4px 11px;border-radius:6px;font-family:var(--mono);font-size:10px;border:1px solid var(--ln);background:transparent;color:var(--t2);cursor:pointer;transition:all .14s;}
+.fmb.on{background:rgba(43,111,255,.15);color:var(--b);border-color:rgba(43,111,255,.3);}
+.feed-main{flex:1;display:grid;grid-template-columns:1fr 1fr;overflow:hidden;}
+.feed-panel{display:flex;flex-direction:column;border-right:1px solid var(--ln);}
+.feed-panel:last-child{border-right:none;}
+.feed-ph{padding:8px 13px;border-bottom:1px solid var(--ln);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:rgba(0,0,0,.5);}
+.feed-ph-title{font-family:var(--mono);font-size:10px;font-weight:600;}
+.feed-ph-meta{font-family:var(--mono);font-size:9px;color:var(--t2);}
+.feed-canvas-wrap{flex:1;position:relative;overflow:hidden;min-height:0;}
+.feed-canvas{display:block;width:100%;height:100%;}
+.feed-scan-h{position:absolute;top:0;left:0;right:0;height:2px;pointer-events:none;animation:vscan 2.8s linear infinite;}
+@keyframes vscan{0%{top:0;}100%{top:100%;}}
+.fc-corners{position:absolute;inset:0;pointer-events:none;}
+.fc{position:absolute;width:14px;height:14px;border-style:solid;}
+.fc-tl{top:7px;left:7px;border-width:2px 0 0 2px;}.fc-tr{top:7px;right:7px;border-width:2px 2px 0 0;}
+.fc-bl{bottom:7px;left:7px;border-width:0 0 2px 2px;}.fc-br{bottom:7px;right:7px;border-width:0 2px 2px 0;}
+.feed-rec-badge{position:absolute;top:8px;right:8px;font-family:var(--mono);font-size:8px;background:rgba(240,62,92,.9);border-radius:3px;padding:2px 6px;color:#fff;display:flex;align-items:center;gap:3px;pointer-events:none;}
+.rec-dot{width:4px;height:4px;border-radius:50%;background:#fff;animation:blink 1s infinite;}
+.feed-overlay-info{position:absolute;bottom:8px;left:8px;display:flex;flex-direction:column;gap:3px;pointer-events:none;}
+.feed-tag-main{font-family:var(--mono);font-size:9px;background:rgba(0,0,0,.8);border:1px solid;border-radius:3px;padding:2px 7px;}
+.feed-tag-sub{font-family:var(--mono);font-size:8px;background:rgba(0,0,0,.6);border-radius:3px;padding:2px 7px;color:var(--t1);}
+.feed-ftr{padding:6px 12px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--ln);flex-shrink:0;background:rgba(0,0,0,.4);}
+.feed-stat{font-family:var(--mono);font-size:9px;color:var(--t2);}
+.feed-stat span{color:var(--t0);}
+.thermal-scale{position:absolute;right:9px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;gap:2px;pointer-events:none;}
+.tsc-lbl{font-family:var(--mono);font-size:7px;color:rgba(255,255,220,.6);}
+
+/* SENSORS */
+#pgs{flex-direction:column;overflow-y:auto;}
+.szbar{padding:11px 18px;border-bottom:1px solid var(--ln);display:flex;align-items:center;gap:10px;flex-shrink:0;background:var(--s1);}
+.szlbl{font-family:var(--mono);font-size:10px;color:var(--t2);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;}
+.szbts{display:flex;gap:4px;flex-wrap:wrap;}
+.szbt{padding:4px 12px;border-radius:10px;font-family:var(--mono);font-size:10px;border:1px solid var(--ln);background:transparent;color:var(--t2);cursor:pointer;transition:all .14s;}
+.szbt.on{background:var(--gd);color:var(--g);border-color:rgba(0,200,130,.3);}
+.scnt{padding:18px;display:flex;flex-direction:column;gap:18px;}
+.crit-banner{display:flex;align-items:center;gap:12px;padding:11px 15px;background:rgba(240,62,92,.08);border:1px solid rgba(240,62,92,.25);border-radius:8px;}
+.crit-dot{width:8px;height:8px;border-radius:50%;background:var(--r);animation:blink 1s infinite;flex-shrink:0;}
+.crit-text{font-family:var(--mono);font-size:11px;color:var(--r);}
+.sgtitle{font-family:var(--mono);font-size:9px;font-weight:600;color:var(--t2);letter-spacing:.12em;text-transform:uppercase;margin-bottom:9px;display:flex;align-items:center;gap:6px;}
+.sgtitle::before{content:'';width:3px;height:11px;border-radius:2px;}
+.sgr::before{background:var(--r);}.sgb::before{background:var(--b);}.sgg::before{background:var(--g);}.sgy::before{background:var(--y);}
+.sgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;}
+.sc{background:var(--s2);border:1px solid var(--ln);border-radius:10px;padding:13px;position:relative;}
+.sc.alert-high{border-color:rgba(240,62,92,.4);background:rgba(240,62,92,.04);}
+.sc.alert-high::after{content:'⚠ HIGH';position:absolute;top:7px;right:8px;font-family:var(--mono);font-size:8px;color:var(--r);}
+.sclbl{font-family:var(--mono);font-size:9px;color:var(--t2);letter-spacing:.07em;margin-bottom:6px;}
+.scval{font-size:22px;font-weight:700;line-height:1;margin-bottom:2px;}
+.scunit{font-family:var(--mono);font-size:9px;color:var(--t2);}
+.scprog{height:3px;background:rgba(255,255,255,.05);border-radius:2px;margin-top:9px;overflow:hidden;}
+.scpf{height:100%;border-radius:2px;}
+.spkwrap{height:28px;margin-top:7px;}
+canvas.spk{width:100%;height:28px;}
+
+/* COMMANDER PANEL */
+#pgcmd{flex-direction:row;overflow:hidden;}
+#cmd-left{width:320px;min-width:320px;border-right:1px solid var(--ln);display:flex;flex-direction:column;overflow:hidden;}
+#cmd-main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+#cmd-right{width:320px;min-width:320px;border-left:1px solid var(--ln);display:flex;flex-direction:column;overflow:hidden;}
+.cmd-section{padding:14px;}
+.cmd-section-title{font-family:var(--mono);font-size:10px;font-weight:600;color:var(--t2);letter-spacing:.12em;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+.cmd-section-title::before{content:'';width:3px;height:11px;border-radius:2px;background:var(--g);}
+/* broadcast */
+.broadcast-box{background:var(--s2);border:1px solid var(--ln);border-radius:10px;padding:14px;}
+.bcast-sev{display:flex;gap:6px;margin-bottom:10px;}
+.sev-btn{flex:1;padding:6px;border:1px solid var(--ln);border-radius:5px;background:transparent;font-family:var(--mono);font-size:9px;cursor:pointer;transition:all .14s;}
+.sev-btn.on.critical{background:rgba(240,62,92,.2);color:var(--r);border-color:rgba(240,62,92,.4);}
+.sev-btn.on.high{background:rgba(232,147,10,.15);color:var(--y);border-color:rgba(232,147,10,.3);}
+.sev-btn.on.medium{background:rgba(43,111,255,.15);color:var(--b);border-color:rgba(43,111,255,.3);}
+.sev-btn.on.info{background:rgba(0,200,130,.12);color:var(--g);border-color:rgba(0,200,130,.25);}
+.bcast-input{width:100%;background:var(--s3);border:1px solid var(--ln);border-radius:5px;padding:8px 10px;color:var(--t0);font-family:var(--mono);font-size:11px;resize:none;margin-bottom:8px;outline:none;height:68px;}
+.bcast-input:focus{border-color:rgba(0,200,130,.3);}
+.bcast-send-btn{width:100%;padding:9px 0;background:var(--g);border:none;border-radius:5px;color:#020a05;font-family:var(--mono);font-size:11px;font-weight:700;cursor:pointer;transition:all .14s;}
+.bcast-send-btn:hover{background:var(--g2);}
+/* drone control */
+.drone-ctrl-list .dc-item{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--ln);}
+.drone-ctrl-list .dc-item:last-child{border-bottom:none;}
+.dc-id{font-family:var(--mono);font-size:12px;font-weight:700;min-width:52px;}
+.dc-zone{font-family:var(--mono);font-size:10px;flex:1;}
+.dc-bat-mini{width:40px;height:5px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;}
+.dc-bat-fill{height:100%;border-radius:2px;}
+.dc-btn{padding:4px 9px;border:1px solid var(--ln);border-radius:4px;background:transparent;color:var(--t2);font-family:var(--mono);font-size:9px;cursor:pointer;transition:all .13s;}
+.dc-btn:hover{background:var(--s3);color:var(--t0);}
+.dc-btn.rtb{border-color:rgba(232,147,10,.3);color:var(--y);}
+.dc-btn.dispatch-go{border-color:rgba(0,200,130,.3);color:var(--g);}
+/* resource sliders */
+.res-ctrl-item{padding:9px 0;border-bottom:1px solid var(--ln);}
+.res-ctrl-item:last-child{border-bottom:none;}
+.res-ctrl-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;}
+.res-ctrl-name{font-size:12px;font-weight:600;}
+.res-ctrl-val{font-family:var(--mono);font-size:12px;font-weight:700;}
+.res-slider{width:100%;height:4px;-webkit-appearance:none;background:rgba(255,255,255,.07);border-radius:2px;outline:none;cursor:pointer;}
+.res-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--g);cursor:pointer;}
+/* error log */
+.err-list{display:flex;flex-direction:column;gap:6px;padding:14px;}
+.err-item{background:var(--s2);border:1px solid var(--ln);border-radius:8px;padding:10px 12px;position:relative;}
+.err-item.acked{opacity:.4;}
+.err-item.CRITICAL{border-color:rgba(240,62,92,.4);border-left:3px solid var(--r);}
+.err-item.HIGH{border-color:rgba(232,147,10,.3);border-left:3px solid var(--y);}
+.err-item.MEDIUM{border-color:rgba(43,111,255,.25);border-left:3px solid var(--b);}
+.err-item.LOW,.err-item.INFO{border-left:3px solid var(--t2);}
+.err-top{display:flex;align-items:center;gap:7px;margin-bottom:4px;}
+.err-sev{font-family:var(--mono);font-size:9px;padding:1px 6px;border-radius:4px;font-weight:700;}
+.err-sev.CRITICAL{background:var(--rd);color:var(--r);}
+.err-sev.HIGH{background:var(--yd);color:var(--y);}
+.err-sev.MEDIUM{background:var(--bd);color:var(--b);}
+.err-sev.LOW,.err-sev.INFO{background:rgba(255,255,255,.05);color:var(--t2);}
+.err-source{font-family:var(--mono);font-size:9px;color:var(--t2);}
+.err-time{font-family:var(--mono);font-size:8px;color:var(--t2);margin-left:auto;}
+.err-msg{font-family:var(--mono);font-size:10px;color:var(--t1);line-height:1.5;}
+.err-ack-btn{position:absolute;bottom:8px;right:10px;padding:2px 8px;border:1px solid var(--ln);border-radius:4px;background:transparent;color:var(--t2);font-family:var(--mono);font-size:9px;cursor:pointer;transition:all .13s;}
+.err-ack-btn:hover{background:var(--s3);color:var(--t0);}
+/* command log */
+.cmd-log-item{padding:7px 0;border-bottom:1px solid var(--ln);display:flex;flex-direction:column;gap:2px;}
+.cmd-log-item:last-child{border-bottom:none;}
+.cmd-log-header{display:flex;align-items:center;gap:7px;}
+.cmd-log-action{font-family:var(--mono);font-size:10px;font-weight:700;color:var(--g);}
+.cmd-log-target{font-family:var(--mono);font-size:10px;color:var(--t1);}
+.cmd-log-time{font-family:var(--mono);font-size:8px;color:var(--t2);margin-left:auto;}
+.cmd-log-op{font-family:var(--mono);font-size:9px;color:var(--t2);}
+
+/* DRONES PAGE */
+#pgdr{flex-direction:column;overflow-y:auto;padding:18px;gap:16px;}
+.drone-status-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.dscard{background:var(--s2);border:1px solid var(--ln);border-radius:12px;padding:16px;display:flex;align-items:center;gap:12px;}
+.ds-ico{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;}
+.ds-val{font-size:28px;font-weight:800;line-height:1;margin-bottom:1px;}
+.ds-lbl{font-family:var(--mono);font-size:9px;color:var(--t2);}
+.drone-table{background:var(--s2);border:1px solid var(--ln);border-radius:12px;overflow:hidden;}
+.drone-table-hdr{display:grid;grid-template-columns:80px 1fr 150px 120px 100px 120px;gap:10px;padding:10px 16px;border-bottom:1px solid var(--ln);background:var(--s3);}
+.dlh{font-family:var(--mono);font-size:9px;color:var(--t2);letter-spacing:.08em;text-transform:uppercase;}
+.drone-table-row{display:grid;grid-template-columns:80px 1fr 150px 120px 100px 120px;gap:10px;padding:12px 16px;border-bottom:1px solid var(--ln);align-items:center;transition:background .14s;}
+.drone-table-row:last-child{border-bottom:none;}
+.drone-table-row:hover{background:var(--s3);}
+.dr-id{font-family:var(--mono);font-size:13px;font-weight:700;}
+.dr-task{font-size:12px;color:var(--t1);}
+.dr-bat-wrap{display:flex;align-items:center;gap:7px;}
+.dr-bat-track{flex:1;height:5px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;}
+.dr-bat-fill{height:100%;border-radius:2px;}
+.dr-bat-pct{font-family:var(--mono);font-size:11px;font-weight:600;min-width:30px;text-align:right;}
+.dr-ctrl-btn{padding:4px 10px;border:1px solid var(--ln);border-radius:4px;background:transparent;font-family:var(--mono);font-size:9px;cursor:pointer;transition:all .13s;color:var(--t2);}
+.dr-ctrl-btn:hover{background:var(--s4);color:var(--t0);}
+.dr-ctrl-btn.rtb-btn{border-color:rgba(232,147,10,.3);color:var(--y);}
+.dr-ctrl-btn.disp-btn{border-color:rgba(0,200,130,.3);color:var(--g);}
+
+/* TRAIN DATA WIDGET */
+.train-widget{background:var(--s2);border:1px solid var(--ln);border-radius:12px;padding:18px 20px;}
+.train-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.train-title{font-size:14px;font-weight:700;color:var(--b);display:flex;align-items:center;gap:10px;}
+.train-title::before{content:'';width:3px;height:16px;background:var(--b);border-radius:2px;}
+.train-badge{font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:6px;background:var(--bd);color:var(--b);border:1px solid rgba(43,111,255,.25);}
+.train-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
+.train-card{background:var(--s3);border:1px solid var(--ln);border-radius:8px;padding:12px;text-align:center;}
+.train-card-lbl{font-family:var(--mono);font-size:9px;color:var(--t2);letter-spacing:.1em;margin-bottom:6px;}
+.train-card-val{font-size:22px;font-weight:800;line-height:1;margin-bottom:2px;}
+.train-card-sub{font-family:var(--mono);font-size:9px;color:var(--t1);}
+.train-bar-row{display:grid;grid-template-columns:140px 1fr 60px 70px;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--ln);}
+.train-bar-lbl{font-family:var(--mono);font-size:10px;color:var(--t1);}
+.train-bar-outer{height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;}
+.train-bar-fill{height:100%;border-radius:3px;transition:width .6s;}
+.train-bar-pct{font-family:var(--mono);font-size:10px;font-weight:700;text-align:right;}
+.train-bar-tag{font-family:var(--mono);font-size:8px;padding:2px 6px;border-radius:4px;text-align:center;}
+
+/* PS LOCATION */
+.ps-location-wrap{background:var(--s2);border:1px solid var(--ln);border-radius:12px;overflow:hidden;}
+.ps-loc-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--ln);background:var(--s3);}
+.ps-loc-title{font-size:13px;font-weight:700;color:var(--g);display:flex;align-items:center;gap:8px;}
+.ps-loc-title::before{content:'📍';font-size:12px;}
+.ps-loc-badge{font-family:var(--mono);font-size:9px;padding:2px 7px;border-radius:5px;background:var(--gd);color:var(--g);border:1px solid rgba(0,200,130,.25);}
+.ps-loc-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;}
+.ps-loc-item{padding:12px 16px;border-right:1px solid var(--ln);border-bottom:1px solid var(--ln);}
+.ps-loc-item:nth-child(2n){border-right:none;}
+.ps-loc-item:nth-last-child(-n+2){border-bottom:none;}
+.ps-loc-team{font-size:12px;font-weight:700;margin-bottom:3px;}
+.ps-loc-role{font-family:var(--mono);font-size:9px;color:var(--t2);margin-bottom:6px;}
+.ps-loc-coords{font-family:var(--mono);font-size:9px;color:var(--g);display:flex;align-items:center;gap:4px;margin-bottom:2px;}
+.ps-loc-addr{font-family:var(--mono);font-size:9px;color:var(--t1);margin-bottom:4px;}
+.ps-loc-status-row{display:flex;align-items:center;gap:6px;}
+.ps-loc-pulse{width:5px;height:5px;border-radius:50%;background:var(--g);animation:blink 1.4s infinite;}
+.ps-loc-status{font-family:var(--mono);font-size:9px;color:var(--g);}
+.ps-loc-eta{font-family:var(--mono);font-size:9px;color:var(--t2);}
+
+/* RESOURCE QUANTITY INPUT */
+.ra-qty-input{width:46px;font-family:var(--mono);font-size:12px;font-weight:700;text-align:center;background:var(--s3);border:1px solid var(--ln);border-radius:5px;padding:2px 4px;outline:none;cursor:text;}
+.ra-qty-input:focus{border-color:rgba(0,200,130,.4);}
+
+/* MODALS */
+#confirmModal{position:fixed;inset:0;z-index:9999;background:rgba(2,5,10,.88);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;}
+#confirmModal.show{display:flex;}
+#errorModal{position:fixed;inset:0;z-index:9998;background:rgba(2,5,10,.88);backdrop-filter:blur(8px);display:none;flex-direction:column;overflow:hidden;}
+#errorModal.show{display:flex;}
+.modal-box{background:var(--s2);border:1px solid var(--ln2);border-radius:16px;padding:30px 34px;text-align:center;max-width:420px;width:90%;}
+.modal-ico{font-size:38px;margin-bottom:14px;}
+.modal-title{font-size:19px;font-weight:700;margin-bottom:8px;}
+.modal-sub{font-family:var(--mono);font-size:11px;color:var(--t1);line-height:1.7;margin-bottom:26px;}
+.modal-btns{display:flex;gap:10px;justify-content:center;}
+.modal-cancel{padding:9px 26px;background:transparent;border:1px solid var(--ln2);border-radius:7px;color:var(--t1);font-family:var(--ui);font-size:13px;cursor:pointer;transition:all .18s;}
+.modal-cancel:hover{background:var(--s3);}
+.modal-confirm{padding:9px 26px;background:var(--r);border:none;border-radius:7px;color:#fff;font-family:var(--ui);font-size:13px;font-weight:700;cursor:pointer;transition:all .18s;}
+.modal-confirm:hover{background:#f75070;}
+.error-modal-inner{flex:1;display:flex;flex-direction:column;overflow:hidden;margin:24px;}
+.error-modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.error-modal-title{font-size:20px;font-weight:700;}
+.error-modal-close{background:var(--s2);border:1px solid var(--ln);border-radius:6px;color:var(--t1);padding:6px 14px;font-family:var(--mono);font-size:11px;cursor:pointer;}
+.error-modal-filters{display:flex;gap:6px;margin-bottom:12px;}
+.err-filter-btn{padding:4px 12px;border:1px solid var(--ln);border-radius:6px;background:transparent;font-family:var(--mono);font-size:10px;color:var(--t2);cursor:pointer;transition:all .13s;}
+.err-filter-btn.on{background:var(--gd);color:var(--g);border-color:rgba(0,200,130,.3);}
+.error-modal-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;}
+
+/* TRAINING DATA PAGE */
+.stat-row-5{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+.stat-c{background:var(--s2);border:1px solid var(--ln);border-radius:12px;padding:16px;}
+.stat-c .lbl{font-family:var(--mono);font-size:9px;color:var(--t2);letter-spacing:.08em;margin-bottom:6px;text-transform:uppercase;}
+.stat-c .val{font-size:28px;font-weight:700;line-height:1;}
+.stat-c .sub{font-family:var(--mono);font-size:10px;color:var(--t2);margin-top:4px;}
+.training-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.schema-table{width:100%;border-collapse:collapse;font-size:12px;}
+.schema-table th{font-size:9px;color:var(--t2);font-family:var(--mono);letter-spacing:.08em;padding:8px 12px;border-bottom:1px solid var(--ln);text-align:left;background:var(--s3);}
+.schema-table td{padding:7px 12px;border-bottom:1px solid var(--ln);font-family:var(--mono);font-size:11px;}
+.schema-table tr:last-child td{border-bottom:none;}
+.schema-table tr:hover td{background:var(--s3);}
+.td-param{color:var(--g);}
+.sample-table{width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono);}
+.sample-table th{font-size:9px;color:var(--t2);letter-spacing:.08em;padding:7px 10px;border-bottom:1px solid var(--ln);text-align:left;background:var(--s3);}
+.sample-table td{padding:6px 10px;border-bottom:1px solid var(--ln);}
+.sample-table tr:hover td{background:var(--s3);}
+.dist-chart-wrap{height:160px;position:relative;}
+#pgtd{flex-direction:column;overflow-y:auto;padding:18px;gap:16px;}
+#toast{position:fixed;top:70px;right:24px;background:var(--s2);border:1px solid rgba(0,200,130,.3);border-radius:10px;padding:10px 14px;font-family:var(--mono);font-size:11px;color:var(--g);display:none;z-index:9000;max-width:280px;line-height:1.8;box-shadow:0 8px 32px rgba(0,0,0,.6);}
+#toast.err{border-color:rgba(240,62,92,.3);color:var(--r);}
+</style>
+</head>
+<body>
+
+<!-- CONNECTION BANNER -->
+<div id="conn-banner" class="connecting">
+  <div class="conn-dot"></div>
+  <span id="conn-text">Connecting to PRANA backend...</span>
+  <span style="margin-left:auto;font-size:9px;opacity:.6" id="conn-detail"></span>
+</div>
+
+<!-- SPLASH -->
+<div id="scr-splash" class="scr">
+  <div class="sp-grid"></div>
+  <div class="sp-rings"><div class="sr"></div><div class="sr"></div><div class="sr"></div><div class="sr"></div></div>
+  <div class="sp-body">
+    <div class="sp-mark"><div class="sp-dot"></div></div>
+    <div class="sp-wordmark">PRANA</div>
+    <div class="sp-full">Predictive Rescue &amp; Autonomous Network Architecture</div>
+    <div class="sp-desc">Industry-Ready Disaster Command &amp; Control System</div>
+    <div class="sp-boot">
+      <div class="sp-bar"><div class="sp-fill"></div></div>
+      <div class="sp-msg">Initializing — <span id="loadmsg" style="color:var(--g)">Connecting to backend...</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ALERT -->
+<div id="scr-alert" class="scr out">
+  <div class="al-bg"></div>
+  <div style="position:relative;z-index:2;text-align:center;display:flex;flex-direction:column;align-items:center;">
+    <div class="al-indicator"><div class="al-bar"></div><div class="al-bar"></div><div class="al-bar"></div><div class="al-bar"></div><div class="al-bar"></div></div>
+    <div class="al-badge">⚠&nbsp;&nbsp;DISASTER ALERT — SENSOR CONFIRMED</div>
+    <div class="al-title">Building Collapse<br>near <span class="al-loc">Kasol, Himachal Pradesh</span></div>
+    <div class="al-stats">
+      <div class="ast"><div class="ast-l">EVENT TYPE</div><div class="ast-v">Structural</div></div>
+      <div class="ast"><div class="ast-l">LOCATION</div><div class="ast-v">Kasol, HP</div></div>
+      <div class="ast"><div class="ast-l">DETECTED AT</div><div class="ast-v" id="altime">--:--</div></div>
+      <div class="ast"><div class="ast-l">CASUALTIES EST.</div><div class="ast-v">24+</div></div>
+      <div class="ast"><div class="ast-l">SEVERITY</div><div class="ast-v" style="color:var(--r)">CRITICAL</div></div>
+    </div>
+    <div class="al-desc">PRANA sensor network detected seismic activity and structural collapse. All data is live from backend. Immediate coordinated response required.</div>
+    <button class="btn-r" onclick="goActions()">Initiate Response Protocol →</button>
+  </div>
+</div>
+
+<!-- ACTIONS -->
+<div id="scr-actions" class="scr out">
+  <div class="ac-bg"></div>
+  <div class="ac-head">
+    <div class="ac-eyebrow">KASOL INCIDENT · ACTIVE RESPONSE</div>
+    <div class="ac-title">Deploy Emergency Resources</div>
+    <div class="ac-sub">Launch drones + alert rescue teams to unlock Command Dashboard</div>
+  </div>
+  <div class="lock-status" id="lockStatus">
+    <div class="lock-dot"></div>
+    <span id="lockText">🔒 Dashboard locked — complete both REQUIRED actions</span>
+  </div>
+  <div class="ac-grid">
+    <div class="acard ar required" id="a1" onclick="doAlert(this,'drone','Drone Fleet Launched','6 units en route','ng','dronesLaunched')">
+      <div class="req-badge">REQUIRED</div>
+      <div class="ac-ico"><svg viewBox="0 0 24 24" fill="none" stroke="var(--r)" stroke-width="2" width="20" height="20"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg></div>
+      <div class="ac-ttl">Launch Drone Fleet</div>
+      <div class="ac-dsc">Deploy 6 autonomous drones — activates live feed</div>
+      <button class="ac-btn">LAUNCH DRONES</button>
+    </div>
+    <div class="acard ar" id="a2" onclick="doAlert(this,'amb','Ambulances Dispatched','8 vehicles from PHC','nr',null)">
+      <div class="ac-ico"><svg viewBox="0 0 24 24" fill="none" stroke="var(--r)" stroke-width="2" width="20" height="20"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 5v4h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/><line x1="6" y1="9" x2="9" y2="9"/><line x1="7.5" y1="7.5" x2="7.5" y2="10.5"/></svg></div>
+      <div class="ac-ttl">Alert Ambulances</div>
+      <div class="ac-dsc">Dispatch 8 medical vehicles from Kasol PHC</div>
+      <button class="ac-btn">ALERT AMBULANCES</button>
+    </div>
+    <div class="acard ay required" id="a3" onclick="doAlert(this,'rescue','Rescue Teams Mobilized','BRAVO &amp; CHARLIE ETA 12 min','ny','rescueAlerted')">
+      <div class="req-badge">REQUIRED</div>
+      <div class="ac-ico"><svg viewBox="0 0 24 24" fill="none" stroke="var(--y)" stroke-width="2" width="20" height="20"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+      <div class="ac-ttl">Alert Rescue Teams</div>
+      <div class="ac-dsc">Mobilize BRAVO (Medical) &amp; CHARLIE (Extraction)</div>
+      <button class="ac-btn">ALERT TEAMS</button>
+    </div>
+    <div class="acard ab" id="a4" onclick="doAlert(this,'police','Police &amp; NDRF Notified','Perimeter active','nb',null)">
+      <div class="ac-ico"><svg viewBox="0 0 24 24" fill="none" stroke="var(--b)" stroke-width="2" width="20" height="20"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/></svg></div>
+      <div class="ac-ttl">Alert Police &amp; NDRF</div>
+      <div class="ac-dsc">Notify Kullu Police + NDRF for perimeter control</div>
+      <button class="ac-btn">ALERT NDRF</button>
+    </div>
+    <div class="acard ag" id="a5" onclick="doAlert(this,'hosp','Hospitals on Standby','40 ICU beds reserved','ng',null)">
+      <div class="ac-ico"><svg viewBox="0 0 24 24" fill="none" stroke="var(--g)" stroke-width="2" width="20" height="20"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 7v10M7 12h10"/></svg></div>
+      <div class="ac-ttl">Alert Hospitals</div>
+      <div class="ac-dsc">Kullu Civil + Manali trauma centre on standby</div>
+      <button class="ac-btn">ALERT HOSPITALS</button>
+    </div>
+    <div class="acard av" id="a6" onclick="doAlert(this,'fire','Fire Brigade Alerted','Hazmat deployed','nb',null)">
+      <div class="ac-ico"><svg viewBox="0 0 24 24" fill="none" stroke="var(--v)" stroke-width="2" width="20" height="20"><path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 3z"/></svg></div>
+      <div class="ac-ttl">Alert Fire Brigade</div>
+      <div class="ac-dsc">Deploy hazmat unit for gas &amp; fire risk</div>
+      <button class="ac-btn">ALERT BRIGADE</button>
+    </div>
+  </div>
+  <div class="ac-foot">
+    <button class="btn-g locked-btn" id="dashBtn" onclick="tryGoDash()">🔒&nbsp; Open Command Dashboard</button>
+    <span class="btn-skip hidden" id="skipBtn" onclick="goDash()">skip to dashboard</span>
+  </div>
+</div>
+
+<div id="notifs"></div>
+
+<!-- DASHBOARD -->
+<div id="scr-dash" class="scr out">
+  <div id="topbar">
+    <div class="tb-brand">
+      <div class="tb-orb"><div class="tb-core"></div></div>
+      <div><div class="tb-name">PRANA</div><div class="tb-sub">Kasol Incident · Active Command · <span id="incident-id">INC-2024-KASOL-001</span></div></div>
+    </div>
+    <div class="tb-chips">
+      <div class="chip cr"><div class="led"></div>INCIDENT ACTIVE</div>
+      <div class="chip cg"><div class="led"></div>AI LIVE · 91.4%</div>
+      <div class="chip cy" id="chip-drones"><div class="led"></div>6 DRONES UP</div>
+      <div class="chip cb" id="chip-zones"><div class="led"></div>5 ZONES</div>
+      <div class="chip cw" id="chip-clients">👤 1 ONLINE</div>
+    </div>
+    <div class="tb-right">
+      <div id="clk">--:--:--</div>
+      <button id="err-btn" onclick="openErrorModal()">⚠ Errors <span class="err-count" id="errCount" style="display:none">0</span></button>
+      <button style="padding:5px 13px;background:rgba(43,111,255,.1);border:1px solid rgba(43,111,255,.3);border-radius:6px;color:var(--b);font-family:var(--mono);font-size:11px;cursor:pointer;" onclick="openBackendModal()">⚡ Backend</button>
+      <button class="close-btn" onclick="askClose()">✕ Close</button>
+    </div>
+  </div>
+  <div id="navbar">
+    <div class="ntab on" onclick="goTab('ov',this)">📊 Overview</div>
+    <div class="ntab" onclick="goTab('d',this)">🗺 Rescue Dispatch</div>
+    <div class="ntab" onclick="goTab('lf',this)">📡 Live Feed</div>
+    <div class="ntab" onclick="goTab('s',this)">⚡ Sensors</div>
+    <div class="ntab" onclick="goTab('cmd',this)">👑 Commander</div>
+    <div class="ntab" onclick="goTab('dr',this)">🛸 Drone Fleet</div>
+    <div class="ntab" onclick="goTab('td',this)">▣ Training Data</div>
+  </div>
+  <div id="pages">
+
+    <!-- OVERVIEW -->
+    <div id="pgov" class="pg on">
+      <div class="kpi-grid">
+        <div class="kpi-card kc-g"><div class="kpi-lbl">Humans Detected</div><div class="kpi-val" id="kpi-humans">—</div><div class="kpi-sub" id="kpi-humans-sub">Loading...</div></div>
+        <div class="kpi-card kc-y"><div class="kpi-lbl">Active Zones</div><div class="kpi-val" id="kpi-zones">—</div><div class="kpi-sub">Building collapse · Earthquake</div></div>
+        <div class="kpi-card kc-r"><div class="kpi-lbl">Avg Survival Rate</div><div class="kpi-val" id="kpi-sr">—</div><div class="kpi-sub" id="kpi-sr-sub">Loading...</div></div>
+        <div class="kpi-card kc-b"><div class="kpi-lbl">Drones Active</div><div class="kpi-val" id="kpi-drones">—</div><div class="kpi-sub" id="kpi-drones-sub">Loading...</div></div>
+        <div class="kpi-card kc-g"><div class="kpi-lbl">Rescue Teams Deployed</div><div class="kpi-val" id="kpi-teams">2</div><div class="kpi-sub" id="kpi-teams-sub">BRAVO + CHARLIE</div></div>
+        <div class="kpi-card kc-v"><div class="kpi-lbl">AI Confidence</div><div class="kpi-val">87%</div><div class="kpi-sub">Model v3.2 · XGBoost</div></div>
+      </div>
+      <div><div class="seclbl">Zone Survival Status — Live from Backend</div><div class="survival-row" id="survivalRow"></div></div>
+      <div class="ra-section">
+        <div class="ra-header">
+          <div class="ra-title">Resource Allocation</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="ra-live-badge">● LIVE — WebSocket</span>
+            <span style="font-family:var(--mono);font-size:9px;color:var(--t2);">Use +/− or type a number to update deployed count</span>
+          </div>
+        </div>
+        <div id="ra-rows"></div>
+      </div>
+
+      <!-- TRAIN DATA WIDGET -->
+      <div class="train-widget">
+        <div class="train-header">
+          <div class="train-title">AI Training Data — Model Performance</div>
+          <span class="train-badge">● XGBoost v3.2 · Live Inference</span>
+        </div>
+        <div class="train-grid" id="trainCards"></div>
+        <div id="trainBars"></div>
+      </div>
+
+      <!-- RESCUE TEAM PS LOCATIONS -->
+      <div>
+        <div class="seclbl">Rescue Team Physical Locations — GPS Live</div>
+        <div class="ps-location-wrap" id="psLocations"></div>
+      </div>
+    </div>
+
+    <!-- DISPATCH with SECTOR MAP -->
+    <div id="pgd" class="pg">
+      <div class="pane fl" style="width:300px;min-width:300px;flex-shrink:0;">
+        <div class="ph"><div class="ph-t">Zone Priority Queue</div><span class="pill pg2" id="zpill">5 zones</span></div>
+        <div class="scrl" id="qlist"></div>
+      </div>
+      <div class="fl" style="flex:1;">
+        <div class="ph" style="background:var(--s1);">
+          <div class="ph-t">Sector Detection Map · Kasol</div>
+          <div style="display:flex;gap:10px;font-family:var(--mono);font-size:10px;">
+            <span style="color:var(--r)">● Critical</span><span style="color:var(--y)">● High</span>
+            <span style="color:var(--b)">● Medium</span><span style="color:var(--t2)">● Low</span>
+          </div>
+        </div>
+        <div id="mwrap">
+          <canvas id="mcanvas"></canvas>
+          <div id="zpop">
+            <div class="zph"><div class="zpname" id="zpname"></div><button class="zpclose" onclick="closePop()">✕</button></div>
+            <div class="zpgrid" id="zpgrid"></div>
+            <div style="font-family:var(--mono);font-size:9px;color:var(--t2);letter-spacing:.1em;margin-bottom:8px;">LIVE SENSOR READINGS</div>
+            <div class="zpsens" id="zpsens"></div>
+            <div class="zp-actions" id="zpactions"></div>
+          </div>
+        </div>
+      </div>
+      <div class="fl" style="width:258px;min-width:258px;border-left:1px solid var(--ln);">
+        <div class="ph"><div class="ph-t">Rescue Teams</div><span class="pill pg2" id="tavpill">2 available</span></div>
+        <div class="scrl" id="tlist"></div>
+        <div id="airec"><div class="arhed">AI Recommendation</div><div id="arbody"></div></div>
+      </div>
+    </div>
+
+    <!-- LIVE FEED -->
+    <div id="pglf" class="pg">
+      <div class="feed-zone-tabs" id="fzTabs"><div class="feed-mode-btns" id="feedModeBtns"></div></div>
+      <div class="feed-main" id="feedMain"></div>
+    </div>
+
+    <!-- SENSORS -->
+    <div id="pgs" class="pg">
+      <div class="szbar"><div class="szlbl">Zone:</div><div class="szbts" id="szbts"></div></div>
+      <div class="scnt">
+        <div id="critBanner" class="crit-banner" style="display:none;"><div class="crit-dot"></div><div class="crit-text" id="critText">ALERT</div></div>
+        <div><div class="sgtitle sgr">Thermal Detection</div><div class="sgrid" id="sgt"></div></div>
+        <div><div class="sgtitle sgb">Acoustic &amp; Sound</div><div class="sgrid" id="sgs"></div></div>
+        <div><div class="sgtitle sgy">Motion &amp; Vibration</div><div class="sgrid" id="sgm"></div></div>
+        <div><div class="sgtitle sgg">Environmental Safety</div><div class="sgrid" id="sge"></div></div>
+      </div>
+    </div>
+
+    <!-- COMMANDER PANEL -->
+    <div id="pgcmd" class="pg">
+      <!-- LEFT: Broadcast + Drone Controls -->
+      <div id="cmd-left" class="fl">
+        <div class="ph"><div class="ph-t">Commander Controls</div><span class="pill cg" style="font-size:9px">LEADER MODE</span></div>
+        <div class="scrl">
+          <div class="cmd-section">
+            <div class="cmd-section-title">Broadcast Alert</div>
+            <div class="broadcast-box">
+              <div class="bcast-sev" id="bcastSev">
+                <button class="sev-btn critical on" onclick="setSev(this,'CRITICAL')">CRITICAL</button>
+                <button class="sev-btn high" onclick="setSev(this,'HIGH')">HIGH</button>
+                <button class="sev-btn medium" onclick="setSev(this,'MEDIUM')">MEDIUM</button>
+                <button class="sev-btn info" onclick="setSev(this,'INFO')">INFO</button>
+              </div>
+              <textarea class="bcast-input" id="bcastMsg" placeholder="Type your message to all connected clients..."></textarea>
+              <button class="bcast-send-btn" onclick="sendBroadcast()">📢 Broadcast to All Units</button>
+            </div>
+          </div>
+          <div class="cmd-section" style="border-top:1px solid var(--ln);">
+            <div class="cmd-section-title">Drone Control</div>
+            <div class="drone-ctrl-list" id="droneCtrlList"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MAIN: Resource sliders + Error log -->
+      <div id="cmd-main" class="fl">
+        <div class="ph"><div class="ph-t">Resource Management — Dynamic Control</div></div>
+        <div class="scrl">
+          <div style="padding:14px">
+            <div id="resCtrlList"></div>
+          </div>
+          <div style="padding:0 14px 14px;">
+            <div class="cmd-section-title">Recent Errors &amp; Alerts</div>
+            <div id="cmd-err-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Command log + Zone controls -->
+      <div id="cmd-right" class="fl">
+        <div class="ph"><div class="ph-t">Command Log</div><span style="font-family:var(--mono);font-size:9px;color:var(--t2)">All actions logged</span></div>
+        <div class="scrl">
+          <div style="padding:14px;">
+            <div id="cmdLogList"></div>
+          </div>
+          <div style="padding:0 14px 14px;border-top:1px solid var(--ln);">
+            <div class="cmd-section-title" style="padding-top:14px">Zone Manual Override</div>
+            <div id="zoneOverrideList"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DRONE FLEET -->
+    <div id="pgdr" class="pg">
+      <div class="drone-status-grid">
+        <div class="dscard"><div class="ds-ico" style="background:var(--gd)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--g)" stroke-width="2" width="22" height="22"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg></div><div><div class="ds-val" style="color:var(--g)" id="drone-mission-count">6</div><div class="ds-lbl">ON MISSION</div></div></div>
+        <div class="dscard"><div class="ds-ico" style="background:var(--yd)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--y)" stroke-width="2" width="22" height="22"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg></div><div><div class="ds-val" style="color:var(--y)" id="drone-returning-count">1</div><div class="ds-lbl">RETURNING</div></div></div>
+        <div class="dscard"><div class="ds-ico" style="background:var(--bd)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--b)" stroke-width="2" width="22" height="22"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div><div><div class="ds-val" style="color:var(--b)" id="drone-charging-count">1</div><div class="ds-lbl">CHARGING</div></div></div>
+        <div class="dscard"><div class="ds-ico" style="background:var(--vd)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--v)" stroke-width="2" width="22" height="22"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/></svg></div><div><div class="ds-val" style="color:var(--v)" id="drone-standby-count">1</div><div class="ds-lbl">STANDBY</div></div></div>
+      </div>
+      <div class="drone-table">
+        <div class="drone-table-hdr"><div class="dlh">ID</div><div class="dlh">TASK</div><div class="dlh">ZONE</div><div class="dlh">BATTERY</div><div class="dlh">STATUS</div><div class="dlh">ACTION</div></div>
+        <div id="droneTableBody"></div>
+      </div>
+    </div>
+
+    <!-- TRAINING DATA -->
+    <div id="pgtd" class="pg">
+      <div class="stat-row-5" id="td-stats"></div>
+      <div class="training-grid-2">
+        <div>
+          <div class="seclbl" style="margin-bottom:10px;">Label Distribution</div>
+          <div style="background:var(--s2);border:1px solid var(--ln);border-radius:12px;padding:16px;">
+            <div class="dist-chart-wrap"><canvas id="distChart"></canvas></div>
+          </div>
+        </div>
+        <div>
+          <div class="seclbl" style="margin-bottom:10px;">Sample Records (live generated)</div>
+          <div style="background:var(--s2);border:1px solid var(--ln);border-radius:12px;overflow:hidden;max-height:220px;overflow-y:auto;">
+            <table class="sample-table">
+              <thead><tr><th>ID</th><th>T°C</th><th>dB</th><th>Vib</th><th>CO₂</th><th>Label</th><th>H.Prob</th></tr></thead>
+              <tbody id="sample-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="seclbl" style="margin-bottom:10px;">Full Parameter Schema — 20 Training Features</div>
+        <div style="background:var(--s2);border:1px solid var(--ln);border-radius:12px;overflow:hidden;">
+          <table class="schema-table">
+            <thead><tr><th>PARAMETER</th><th>UNIT</th><th>HUMAN RANGE</th><th>SENSOR SOURCE</th><th>IMPORTANCE</th></tr></thead>
+            <tbody id="schema-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+<!-- BACKEND MODAL -->
+<div id="backendModal" style="position:fixed;inset:0;z-index:10000;background:rgba(2,5,10,.92);backdrop-filter:blur(8px);display:none;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px;">
+  <div style="background:var(--s2);border:1px solid var(--ln2);border-radius:16px;max-width:760px;width:100%;padding:32px;margin:auto;margin-top:20px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+      <div style="font-size:20px;font-weight:700;color:var(--b)">⚡ Backend Connection Guide</div>
+      <button onclick="closeBackendModal()" style="background:var(--s3);border:1px solid var(--ln);border-radius:6px;color:var(--t1);padding:6px 14px;font-family:var(--mono);font-size:11px;cursor:pointer;">✕ Close</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px;font-family:var(--mono);font-size:12px;line-height:1.9;color:var(--t1);">
+
+      <div style="background:var(--gd);border:1px solid rgba(0,200,130,.3);border-radius:8px;padding:14px;">
+        <div style="font-size:13px;font-weight:700;color:var(--g);margin-bottom:4px;">Current Mode: Standalone Simulation</div>
+        <div style="color:var(--t1);font-size:11px;">All data is simulated locally. Connect a real Node.js backend to sync across multiple operators and real sensors.</div>
+      </div>
+
+      <div style="background:var(--s3);border:1px solid var(--ln);border-radius:8px;padding:16px;">
+        <div style="color:var(--y);font-weight:700;margin-bottom:10px;">STEP 1 — Change WS_URL in this HTML file</div>
+        <div style="background:#020a05;border-radius:6px;padding:12px 14px;color:var(--g);white-space:pre;overflow-x:auto;font-size:11px;">// Find near top of &lt;script&gt;:
+const WS_URL = 'https://prana-the-decider.onrender.com/'; </div>
+      </div>
+
+      <div style="background:var(--s3);border:1px solid var(--ln);border-radius:8px;padding:16px;">
+        <div style="color:var(--y);font-weight:700;margin-bottom:10px;">STEP 2 — Create server.js (Node.js)</div>
+        <div style="background:#020a05;border-radius:6px;padding:12px 14px;color:var(--b);white-space:pre;overflow-x:auto;font-size:11px;">npm install express ws cors
+
+// server.js
+const { WebSocketServer } = require('ws');
+const wss = new WebSocketServer({ port: 3001 });
+
+let state = { zones:[], teams:[], drones:[], resources:[], errorLog:[], commandLog:[] };
+
+wss.on('connection', (ws) => {
+  ws.send(JSON.stringify({ type: 'INIT', payload: state }));
+
+  ws.on('message', (raw) => {
+    const { type, payload } = JSON.parse(raw);
+    if(type === 'UPDATE_RESOURCE') {
+      const r = state.resources.find(r => r.id === payload.resourceId);
+      if(r) r.deployed = payload.deployed;
+      broadcast({ type: 'STATE_UPDATE', payload: { resources: state.resources } });
+    }
+    if(type === 'ASSIGN_TEAM') { /* update team + broadcast */ }
+    if(type === 'DRONE_RTB')   { /* update drone + broadcast */ }
+    // ... handle all events below
+  });
+});
+
+function broadcast(msg) {
+  wss.clients.forEach(c => c.readyState === 1 && c.send(JSON.stringify(msg)));
+}
+
+console.log('PRANA backend running on ws://localhost:3001');</div>
+      </div>
+
+      <div style="background:var(--s3);border:1px solid var(--ln);border-radius:8px;padding:16px;">
+        <div style="color:var(--y);font-weight:700;margin-bottom:10px;">STEP 3 — Frontend → Backend Events</div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px;">
+          <tr><th style="text-align:left;padding:5px 8px;color:var(--t2);border-bottom:1px solid var(--ln);">TYPE</th><th style="text-align:left;padding:5px 8px;color:var(--t2);border-bottom:1px solid var(--ln);">PAYLOAD</th></tr>
+          ${[['UPDATE_RESOURCE','{ resourceId, deployed }'],['ASSIGN_TEAM','{ teamId, zoneId }'],['RECALL_TEAM','{ teamId }'],['DISPATCH_DRONE','{ droneId, zoneId }'],['DRONE_RTB','{ droneId }'],['BROADCAST_ALERT','{ message, severity }'],['ACK_ERROR','{ errorId }']].map(([e,p])=>`<tr><td style="padding:5px 8px;color:var(--g);border-bottom:1px solid var(--ln);">${e}</td><td style="padding:5px 8px;color:var(--t2);border-bottom:1px solid var(--ln);">${p}</td></tr>`).join('')}
+        </table>
+      </div>
+
+      <div style="background:var(--s3);border:1px solid var(--ln);border-radius:8px;padding:16px;">
+        <div style="color:var(--y);font-weight:700;margin-bottom:10px;">STEP 4 — Backend → Frontend Events</div>
+        <table style="width:100%;border-collapse:collapse;font-size:11px;">
+          <tr><th style="text-align:left;padding:5px 8px;color:var(--t2);border-bottom:1px solid var(--ln);">TYPE</th><th style="text-align:left;padding:5px 8px;color:var(--t2);border-bottom:1px solid var(--ln);">PAYLOAD</th></tr>
+          ${[['INIT','{ zones, teams, drones, resources, errorLog, commandLog }'],['STATE_UPDATE','partial state — any keys'],['ERROR_LOG','{ id, severity, source, message, acknowledged }'],['COMMAND_LOG','{ action, target, operatorId, timestamp }'],['COMMANDER_ALERT','{ message, severity }'],['CLIENT_COUNT','{ count }'],['ACTION_SUCCESS','{ action, teamId?, zoneId? }']].map(([e,p])=>`<tr><td style="padding:5px 8px;color:var(--b);border-bottom:1px solid var(--ln);">${e}</td><td style="padding:5px 8px;color:var(--t2);border-bottom:1px solid var(--ln);font-size:10px;">${p}</td></tr>`).join('')}
+        </table>
+      </div>
+
+      <div style="background:var(--s3);border:1px solid var(--ln);border-radius:8px;padding:16px;">
+        <div style="color:var(--y);font-weight:700;margin-bottom:10px;">STEP 5 — Python IoT Sensor Pusher</div>
+        <div style="background:#020a05;border-radius:6px;padding:12px 14px;color:var(--b);white-space:pre;overflow-x:auto;font-size:11px;">pip install websocket-client
+
+import websocket, json, time
+
+ws = websocket.create_connection("ws://localhost:3001")
+while True:
+    ws.send(json.dumps({
+        "type": "SENSOR_UPDATE",
+        "payload": {
+            "zoneId": "SECTOR-A1",
+            "sensors": {
+                "thermal": read_thermal_cam(),
+                "sound": read_microphone(),
+                "vibration": read_seismic(),
+                "co2": read_gas_sensor()
+            }
+        }
+    }))
+    time.sleep(1)</div>
+      </div>
+
+      <div style="background:rgba(43,111,255,.08);border:1px solid rgba(43,111,255,.3);border-radius:8px;padding:14px;">
+        <div style="color:var(--b);font-weight:700;margin-bottom:6px;">Architecture Summary</div>
+        <div style="color:var(--t1);font-size:11px;">IoT Sensors (Python) → Node.js WebSocket Server (port 3001) → PRANA Frontend (this file)<br>Multiple browser tabs can connect simultaneously — all see live state updates.<br>The frontend auto-retries connection every 3s on disconnect.</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="confirmModal">
+  <div class="modal-box">
+    <div class="modal-ico">⚠️</div>
+    <div class="modal-title">Close Command Dashboard?</div>
+    <div class="modal-sub">Active disaster at Kasol. Closing ends your monitoring session. Deployed teams and drones continue operating autonomously.</div>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="cancelClose()">Cancel — Stay Active</button>
+      <button class="modal-confirm" onclick="confirmClose()">Close Dashboard</button>
+    </div>
+  </div>
+</div>
+
+<!-- ERROR MODAL -->
+<div id="errorModal">
+  <div class="error-modal-inner">
+    <div class="error-modal-header">
+      <div class="error-modal-title">⚠ System Error &amp; Alert Log</div>
+      <button class="error-modal-close" onclick="closeErrorModal()">✕ Close</button>
+    </div>
+    <div class="error-modal-filters">
+      <button class="err-filter-btn on" onclick="setErrFilter('ALL',this)">ALL</button>
+      <button class="err-filter-btn" onclick="setErrFilter('CRITICAL',this)" style="color:var(--r)">CRITICAL</button>
+      <button class="err-filter-btn" onclick="setErrFilter('HIGH',this)" style="color:var(--y)">HIGH</button>
+      <button class="err-filter-btn" onclick="setErrFilter('MEDIUM',this)" style="color:var(--b)">MEDIUM</button>
+      <button class="err-filter-btn" onclick="setErrFilter('INFO',this)" style="color:var(--t1)">INFO</button>
+      <button class="err-filter-btn" onclick="ackAllErrors()" style="margin-left:auto;color:var(--g)">✓ Ack All</button>
+    </div>
+    <div class="error-modal-list" id="errorModalList"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// ── Training Data ──
+const SCHEMA_DATA=[
+  ['thermal_peak_temp','°C','34–38','Thermal camera','92'],
+  ['thermal_pulse_variance','°C/s','0.05–0.30','Thermal camera','87'],
+  ['sound_rhythm_score','0–1','0.70–0.95','Acoustic array','81'],
+  ['thermal_symmetry_score','0–1','0.65–0.90','Thermal camera','78'],
+  ['co2_ppm','ppm','600–2000','Gas sensor','74'],
+  ['sound_freq_peak_hz','Hz','85–3000','Acoustic array','68'],
+  ['vibration_mg','mg','5–80','Seismic sensor','63'],
+  ['motion_pixel_delta','%','0.5–15','Optical sensor','59'],
+  ['time_since_event','hours','—','System','55'],
+  ['ir_trigger_per_min','/min','2–15','PIR sensor','48'],
+  ['thermal_blob_area','cm²','350–900','Thermal camera','45'],
+  ['sound_peak_db','dB','22–90','Acoustic array','43'],
+  ['thermal_aspect_ratio','ratio','0.3–0.6','Thermal camera','40'],
+  ['optical_flow_score','0–1','0.3–0.9','Camera','38'],
+  ['sound_harmonic_ratio','0–1','0.5–0.9','Acoustic array','35'],
+  ['thermal_delta_bg','°C','4–16 above bg','Thermal camera','33'],
+  ['humidity_pct','%','—','Env sensor','20'],
+  ['debris_depth_estimate','m','—','LiDAR','18'],
+  ['structure_type','categorical','RC/masonry/steel','GIS','15'],
+  ['accessibility_score','0–1','—','Navigation','12'],
+];
+const SAMPLE_LABEL_CONFIGS=[
+  {l:'human_confirmed',prob:[88,99],th:[340,380],db:[22,80],vb:[5,80],co2:[650,1800]},
+  {l:'human_probable', prob:[55,87],th:[320,360],db:[18,55],vb:[3,50],co2:[520,1100]},
+  {l:'low_probability',prob:[15,54],th:[280,330],db:[10,30],vb:[1,20],co2:[410,600]},
+  {l:'no_human',       prob:[0,14], th:[100,280],db:[5,18], vb:[0,8], co2:[395,420]},
+];
+function rndInt(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
+function genSamples(){
+  const rows=[];
+  SAMPLE_LABEL_CONFIGS.forEach(cfg=>{
+    for(let i=0;i<10;i++){
+      const prob=rndInt(...cfg.prob);
+      rows.push({id:'S'+String(rows.length+1).padStart(4,'0'),th:(rndInt(...cfg.th)/10).toFixed(1),db:rndInt(...cfg.db),vb:rndInt(...cfg.vb),co2:rndInt(...cfg.co2),label:cfg.l,prob});
+    }
+  });
+  return rows.sort(()=>Math.random()-.5);
+}
+const probColor2=p=>p>=80?'var(--r)':p>=50?'var(--y)':p>=20?'var(--b)':'var(--t2)';
+const probBadgeCls=l=>l==='human_confirmed'?'pr2':l==='human_probable'?'py2':l==='low_probability'?'pb2':'pv2';
+function renderSamples(){
+  const tb=document.getElementById('sample-body');if(!tb)return;tb.innerHTML='';
+  genSamples().slice(0,30).forEach(r=>{
+    const c=probColor2(r.prob);
+    tb.innerHTML+=`<tr>
+      <td style="color:var(--t2)">${r.id}</td>
+      <td style="color:var(--r)">${r.th}</td>
+      <td style="color:var(--b)">${r.db}</td>
+      <td style="color:var(--y)">${r.vb}</td>
+      <td style="color:var(--g)">${r.co2}</td>
+      <td><span class="pill ${probBadgeCls(r.label)}" style="font-size:9px">${r.label.replace(/_/g,' ')}</span></td>
+      <td style="color:${c};font-weight:700">${r.prob}%</td>
+    </tr>`;
+  });
+}
+let distChartInst=null,tdBuilt=false;
+function renderTrainingPage(){
+  const sc=document.getElementById('td-stats');
+  if(sc&&!tdBuilt){
+    sc.innerHTML=[
+      {l:'TOTAL RECORDS',v:'14,280',s:'historical samples',c:'var(--g)'},
+      {l:'DISASTER EVENTS',v:'43',s:'2019–2024',c:'var(--y)'},
+      {l:'ACCURACY',v:'91.4%',s:'test set',c:'var(--g)'},
+      {l:'FEATURES',v:'20',s:'input parameters',c:'var(--b)'},
+      {l:'AUC-ROC',v:'0.94',s:'ensemble model',c:'var(--v)'},
+    ].map(s=>`<div class="stat-c"><div class="lbl">${s.l}</div><div class="val" style="color:${s.c}">${s.v}</div><div class="sub">${s.s}</div></div>`).join('');
+  }
+  const sb=document.getElementById('schema-body');
+  if(sb&&!tdBuilt){
+    sb.innerHTML=SCHEMA_DATA.map(r=>{
+      const imp=+r[4];const c=imp>=70?'var(--r)':imp>=45?'var(--y)':'var(--b)';
+      return `<tr><td class="td-param">${r[0]}</td><td style="color:var(--t2)">${r[1]}</td><td style="color:var(--t1)">${r[2]}</td><td style="color:var(--t2)">${r[3]}</td>
+      <td><div style="display:flex;align-items:center;gap:6px;"><div style="width:${Math.min(imp,100)}px;height:4px;background:${c};border-radius:2px;"></div><span style="color:${c};font-size:10px;">${imp}</span></div></td></tr>`;
+    }).join('');
+  }
+  renderSamples();
+  if(!tdBuilt){
+    tdBuilt=true;
+    setTimeout(()=>{
+      const dc=document.getElementById('distChart');if(!dc)return;
+      if(distChartInst)distChartInst.destroy();
+      distChartInst=new Chart(dc,{type:'bar',
+        data:{labels:['Human Confirmed','Human Probable','Low Probability','No Human'],
+          datasets:[{data:[50,50,50,50],backgroundColor:['rgba(240,62,92,.6)','rgba(232,147,10,.6)','rgba(43,111,255,.6)','rgba(48,77,68,.6)'],borderRadius:4,borderSkipped:false}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+          scales:{x:{ticks:{color:'#7aa890',font:{size:10}},grid:{display:false}},
+                  y:{ticks:{color:'#7aa890',font:{size:10}},grid:{color:'rgba(255,255,255,0.04)'}}}},
+      });
+    },80);
+  }
+}
+setInterval(()=>{if(document.getElementById('pgtd')&&document.getElementById('pgtd').classList.contains('on'))renderSamples();},5000);
+
+// ═══════════════════════════════════════════════════
+// WEBSOCKET CONNECTION
+// ═══════════════════════════════════════════════════
+// Auto-detects the right backend address:
+// HTTPS polling instead of WebSocket — no persistent connection needed.
+// Uses the same origin the page was served from (works locally and on Render).
+const API_BASE = (location.protocol === 'file:' || !location.host)
+  ? 'http://localhost:3001'
+  : location.origin;
+const OPERATOR_ID = 'COMMANDER-' + Math.random().toString(36).slice(2,6).toUpperCase();
+let wsReady = false; // kept as the "are we connected to a real backend" flag used elsewhere
+let pollTimer = null;
+let STATE = { zones:[], teams:[], drones:[], resources:[], alerts:[], errorLog:[], commandLog:[], connectedClients:1 };
+let dronesLaunched=false, rescueAlerted=false, feedInit=false, selFeedZone='SECTOR-A1', feedMode='both', feedRAFs={};
+let errFilter='ALL', selZ=null, selSZ='SECTOR-A1', bcastSeverity='CRITICAL';
+
+async function pollState(){
+  const b=document.getElementById('conn-banner');
+  try{
+    const r = await fetch(`${API_BASE}/api/state`, { cache:'no-store' });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.message||'Bad response');
+    if (!wsReady){
+      wsReady = true;
+      b.className='connected';
+      document.getElementById('conn-text').textContent='Connected to PRANA backend — live data (HTTPS polling)';
+      document.getElementById('conn-detail').textContent=`Operator: ${OPERATOR_ID}`;
+      clearInterval(window._simInterval);
+    }
+    handleMsg({type:'STATE_UPDATE', payload:j.data});
+  }catch(e){
+    if (wsReady){
+      wsReady=false;
+      b.className='disconnected';
+      document.getElementById('conn-text').textContent='Backend unreachable — retrying (using last known state)...';
+    } else {
+      b.className='disconnected';
+      document.getElementById('conn-text').textContent='Backend not found — running in simulation mode';
+      startSimulation();
+    }
+  }
+}
+
+function connectWS(){
+  const b=document.getElementById('conn-banner');b.className='connecting';
+  document.getElementById('conn-text').textContent='Connecting to PRANA backend...';
+  pollState();
+  clearInterval(pollTimer);
+  pollTimer = setInterval(pollState, 2000);
+}
+
+async function sendAction(type, payload){
+  try{
+    const r = await fetch(`${API_BASE}/api/action`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ type, payload:{...payload, operatorId: OPERATOR_ID} })
+    });
+    const j = await r.json();
+    if (!j.ok) { showToast('⚠ '+j.message,'err'); return; }
+    pollState(); // refresh immediately instead of waiting for next tick
+  }catch(e){ showToast('⚠ Action failed — backend unreachable','err'); }
+}
+
+function sendWS(type,payload={}){ sendAction(type,payload); }
+
+function handleMsg(msg){
+  switch(msg.type){
+    case 'INIT':
+      STATE={...STATE,...msg.payload};
+      // If backend sends teams, use them; otherwise sync from resources
+      if(!msg.payload.teams || msg.payload.teams.length===0) syncTeamsToResource();
+      renderAll();
+      break;
+    case 'STATE_UPDATE':
+      Object.assign(STATE,msg.payload);
+      // Always sync teams when resources update
+      if(msg.payload.resources) syncTeamsToResource();
+      renderAll();
+      break;
+    case 'ERROR_LOG':
+      STATE.errorLog.unshift(msg.payload);
+      updateErrBadge();renderErrModal();renderCmdErrList();
+      break;
+    case 'ERROR_ACKNOWLEDGED':
+      const e=STATE.errorLog.find(e=>e.id===msg.payload.id);if(e)e.acknowledged=true;
+      updateErrBadge();renderErrModal();
+      break;
+    case 'COMMAND_LOG':
+      STATE.commandLog.unshift(msg.payload);
+      renderCmdLog();
+      break;
+    case 'COMMANDER_ALERT':
+      showToast(`📢 ${msg.payload.severity}: ${msg.payload.message}`,'ng');
+      break;
+    case 'CLIENT_COUNT':
+      document.getElementById('chip-clients').innerHTML=`👤 ${msg.payload.count} ONLINE`;
+      break;
+    case 'ACTION_SUCCESS':
+      showToast(`✓ ${msg.payload.action}: ${msg.payload.teamId||''} ${msg.payload.zoneId||''}`.trim(),'ng');
+      break;
+    case 'ERROR':
+      showToast('⚠ '+msg.payload.message,'err');
+      break;
+    case 'PONG':
+      break;
+  }
+}
+
+// ── Fallback simulation if no backend ──
+function startSimulation(){
+  document.getElementById('conn-text').textContent='Backend not found — running in simulation mode';
+  document.getElementById('conn-banner').className='connecting';
+  // Use static data
+  STATE.zones=[
+    {id:'SECTOR-A1',type:'collapse',  x:.22,y:.22,r:.10,hc:7,hp:94,sr:78,ts:2.5,assigned:null,sensors:{thermal:37.1,sound:48,vibration:42,co2:1620,motion:8.2}},
+    {id:'SECTOR-B2',type:'collapse',  x:.56,y:.28,r:.09,hc:4,hp:88,sr:71,ts:3.1,assigned:null,sensors:{thermal:36.4,sound:38,vibration:28,co2:1340,motion:5.4}},
+    {id:'SECTOR-C3',type:'earthquake',x:.35,y:.60,r:.11,hc:9,hp:81,sr:66,ts:4.8,assigned:null,sensors:{thermal:35.8,sound:31,vibration:61,co2:980, motion:3.1}},
+    {id:'SECTOR-D1',type:'earthquake',x:.74,y:.52,r:.08,hc:3,hp:73,sr:60,ts:5.2,assigned:null,sensors:{thermal:35.2,sound:26,vibration:48,co2:740, motion:2.3}},
+    {id:'SECTOR-E2',type:'collapse',  x:.18,y:.77,r:.07,hc:2,hp:61,sr:51,ts:6.0,assigned:null,sensors:{thermal:34.8,sound:21,vibration:18,co2:610, motion:1.4}},
+  ];
+  STATE.teams=[];
+  STATE.drones=[{id:'DR-01',status:'mission',zone:'SECTOR-A1',battery:78,task:'Thermal scan — survivors located'},{id:'DR-02',status:'mission',zone:'SECTOR-B2',battery:64,task:'Acoustic beacon deployed'},{id:'DR-03',status:'mission',zone:'SECTOR-C3',battery:91,task:'Mapping debris field'},{id:'DR-04',status:'mission',zone:'SECTOR-D1',battery:55,task:'Human signal confirmed'},{id:'DR-05',status:'returning',zone:null,battery:18,task:'Battery low — returning'},{id:'DR-06',status:'mission',zone:'SECTOR-E2',battery:83,task:'Perimeter sweep active'},{id:'DR-07',status:'charging',zone:null,battery:32,task:'Charging — ETA 12 min'},{id:'DR-08',status:'standby',zone:null,battery:100,task:'Ready for dispatch'}];
+  STATE.resources=[{id:'rescue_teams',name:'Rescue Teams',sub:'BRAVO + CHARLIE',total:6,deployed:2,color:'#00c882'},{id:'medical_staff',name:'Medical Staff',sub:'Paramedics & nurses',total:12,deployed:8,color:'#2b6fff'},{id:'drones',name:'Drone Units',sub:'Aerial surveillance',total:8,deployed:6,color:'#e8930a'},{id:'ambulances',name:'Ambulances',sub:'Transport vehicles',total:4,deployed:2,color:'#2b6fff'},{id:'beacons',name:'Acoustic Beacons',sub:'Survivor detection',total:20,deployed:5,color:'#f03e5c'},{id:'thermal_cams',name:'Thermal Cameras',sub:'Heat imaging units',total:6,deployed:6,color:'#00c882'},{id:'cutting_tools',name:'Cutting Tools',sub:'Extrication gear',total:10,deployed:7,color:'#e8930a'},{id:'oxygen',name:'O₂ Cylinders',sub:'Medical oxygen',total:30,deployed:22,color:'#2b6fff'}];
+  STATE.errorLog=[{id:'e1',timestamp:new Date().toISOString(),severity:'CRITICAL',source:'SECTOR-C3',message:'9 survivors — team not yet assigned',acknowledged:false},{id:'e2',timestamp:new Date().toISOString(),severity:'HIGH',source:'SECTOR-A1',message:'CO₂ critical: 1620 ppm',acknowledged:false},{id:'e3',timestamp:new Date().toISOString(),severity:'INFO',source:'SYSTEM',message:'PRANA running in simulation mode',acknowledged:false}];
+  STATE.commandLog=[];
+  renderAll();
+  syncTeamsToResource();
+  // Simulate updates
+  window._simInterval = setInterval(()=>{
+    STATE.zones.forEach(z=>{
+      z.sensors.thermal=+Math.min(38.5,Math.max(33,z.sensors.thermal+(Math.random()-.5)*.18)).toFixed(2);
+      z.sensors.sound=+Math.max(5,Math.min(90,z.sensors.sound+(Math.random()-.5)*1.8)).toFixed(0);
+      z.sensors.vibration=+Math.max(1,Math.min(90,z.sensors.vibration+(Math.random()-.5)*2.2)).toFixed(0);
+      if(z.hc>0)z.sr=+Math.max(1,z.sr-Math.random()*.08).toFixed(2);
+      z.ts=+(z.ts+4/3600).toFixed(4);
+    });
+    STATE.drones.forEach(d=>{if(d.status==='mission')d.battery=+Math.max(0,d.battery-rnd(.05,.15)).toFixed(1);if(d.status==='charging')d.battery=+Math.min(100,d.battery+rnd(.3,.6)).toFixed(1);});
+    renderAll();
+  },4000);
+}
+
+// ═══════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════
+const rnd=(a,b,d=1)=>+((Math.random()*(b-a)+a).toFixed(d));
+const clamp=(v,mn,mx)=>Math.max(mn,Math.min(mx,v));
+const pr=z=>((z.hp/100)*.4+Math.exp(-.048*z.ts)*.35+(z.sr/100)*.25)*100;
+const zcl=sr=>sr>=75?'zr':sr>=50?'zy':sr>=30?'zb':'zt';
+const zco=sr=>sr>=75?'#f03e5c':sr>=50?'#e8930a':sr>=30?'#2b6fff':'#2c4a42';
+const zlb=sr=>sr>=75?'CRITICAL':sr>=50?'HIGH':sr>=30?'MEDIUM':'LOW';
+function fmtTime(iso){return new Date(iso).toTimeString().slice(0,8);}
+
+// ═══════════════════════════════════════════════════
+// SCREENS
+// ═══════════════════════════════════════════════════
+function show(id){document.querySelectorAll('.scr').forEach(s=>{s.classList.add('out');setTimeout(()=>{if(s.id!==id)s.classList.add('off');},520);});const t=document.getElementById(id);t.classList.remove('off');requestAnimationFrame(()=>requestAnimationFrame(()=>t.classList.remove('out')));}
+const lms=['Connecting to backend...','Loading sector data...','Initializing AI engine...','Syncing drone network...','All systems nominal.'];
+let lmi=0;const lel=document.getElementById('loadmsg');
+const lInt=setInterval(()=>{if(lmi<lms.length)lel.textContent=lms[lmi++];else clearInterval(lInt);},550);
+setTimeout(()=>{document.getElementById('altime').textContent=new Date().toTimeString().slice(0,5);show('scr-alert');},3000);
+function goActions(){show('scr-actions');}
+function doAlert(card,ico,title,msg,cls,flag){
+  if(card.classList.contains('sent'))return;
+  card.classList.add('sent');
+  if(flag==='dronesLaunched')dronesLaunched=true;
+  if(flag==='rescueAlerted')rescueAlerted=true;
+  const w=document.getElementById('notifs');const d=document.createElement('div');d.className='notif '+cls;
+  const ic={drone:'🛸',amb:'🚑',rescue:'🦺',police:'🚔',hosp:'🏥',fire:'🔥'};
+  d.innerHTML=`<div class="n-ico">${ic[ico]||'📡'}</div><div class="n-body"><strong>${title}</strong>${msg}</div>`;
+  w.appendChild(d);setTimeout(()=>{d.style.transition='opacity .4s';d.style.opacity='0';setTimeout(()=>d.remove(),400);},4200);
+  updateLock();
+}
+function updateLock(){
+  const lk=document.getElementById('lockStatus'),lt=document.getElementById('lockText'),db=document.getElementById('dashBtn'),sk=document.getElementById('skipBtn');
+  if(dronesLaunched&&!rescueAlerted){lt.textContent='Drones launched ✓ — Alert Rescue Teams to unlock';lk.querySelector('.lock-dot').style.background='var(--y)';lk.style.color='var(--y)';}
+  else if(!dronesLaunched&&rescueAlerted){lt.textContent='Teams alerted ✓ — Launch Drones to unlock';lk.querySelector('.lock-dot').style.background='var(--y)';lk.style.color='var(--y)';}
+  else if(dronesLaunched&&rescueAlerted){lt.textContent='✅ Unlocked — Dashboard ready';lk.classList.add('unlocked');db.classList.remove('locked-btn');db.innerHTML='▶ Open Command Dashboard';sk.classList.remove('hidden');}
+}
+function tryGoDash(){if(dronesLaunched&&rescueAlerted){goDash();}else{const m=[];if(!dronesLaunched)m.push('Launch Drones');if(!rescueAlerted)m.push('Alert Teams');showToast('🔒 Complete: '+m.join(' + '),'err');}}
+function goDash(){show('scr-dash');document.getElementById('notifs').innerHTML='';setTimeout(()=>{rsMap();animMap();renderAll();},250);}
+function askClose(){document.getElementById('confirmModal').classList.add('show');}
+function cancelClose(){document.getElementById('confirmModal').classList.remove('show');}
+function confirmClose(){document.getElementById('confirmModal').classList.remove('show');show('scr-alert');}
+function openBackendModal(){document.getElementById('backendModal').style.display='flex';}
+function closeBackendModal(){document.getElementById('backendModal').style.display='none';}
+setInterval(()=>{const e=document.getElementById('clk');if(e)e.textContent=new Date().toTimeString().slice(0,8);},1000);
+
+// ═══════════════════════════════════════════════════
+// RENDER ALL
+// ═══════════════════════════════════════════════════
+function renderAll(){
+  updateKPIs();renderSurvivalRow();renderRA();renderTrainData();renderPSLocations();renderQueue();renderTeams();renderAIRec();renderDroneTable();renderDroneCtrl();renderResCtrl();renderZoneOverride();updateErrBadge();renderCmdErrList();renderCmdLog();
+  if(document.getElementById('pgs').classList.contains('on'))rSens();
+}
+
+// ═══════════════════════════════════════════════════
+// KPIs
+// ═══════════════════════════════════════════════════
+function updateKPIs(){
+  const zones=STATE.zones;
+  document.getElementById('kpi-humans').textContent=zones.reduce((s,z)=>s+z.hc,0);
+  document.getElementById('kpi-humans-sub').textContent=zones.filter(z=>z.hc>0).length+' zones with survivors';
+  document.getElementById('kpi-zones').textContent=zones.length;
+  const avgSR=(zones.reduce((s,z)=>s+z.sr,0)/zones.length).toFixed(0);
+  document.getElementById('kpi-sr').textContent=avgSR+'%';
+  const crisis=zones.filter(z=>z.sr<60).length;
+  document.getElementById('kpi-sr-sub').textContent=crisis>0?crisis+' zones critical':'All zones stable';
+  const mis=STATE.drones.filter(d=>d.status==='mission').length;
+  const tot=STATE.drones.length;
+  document.getElementById('kpi-drones').textContent=mis+'/'+tot;
+  document.getElementById('kpi-drones-sub').textContent=(tot-mis)+' charging/standby';
+  // Rescue teams: mobilized = resource deployed count, assigned = teams with zones
+  const rtRes=STATE.resources.find(r=>r.id==='rescue_teams');
+  const mobilized=rtRes?rtRes.deployed:STATE.teams.length;
+  const totalPool=rtRes?rtRes.total:6;
+  const assigned=STATE.teams.filter(t=>t.status==='deployed'||t.assignedZone).length;
+  document.getElementById('kpi-teams').textContent=mobilized+'/'+totalPool;
+  document.getElementById('kpi-teams-sub').textContent=
+    assigned+' assigned to zones · '+STATE.teams.reduce((s,t)=>s+t.members,0)+' personnel';
+  document.getElementById('chip-drones').innerHTML=`<div class="led"></div>${mis} DRONES UP`;
+  document.getElementById('chip-zones').innerHTML=`<div class="led"></div>${zones.length} ZONES`;
+}
+
+// ═══════════════════════════════════════════════════
+// SURVIVAL ROW
+// ═══════════════════════════════════════════════════
+function renderSurvivalRow(){
+  const el=document.getElementById('survivalRow');el.innerHTML='';
+  STATE.zones.forEach(z=>{
+    const c=zco(z.sr);
+    el.innerHTML+=`<div class="sv-card">
+      <div class="sv-zone">${z.id}</div>
+      <div class="sv-pct" style="color:${c}">${z.sr.toFixed(0)}%</div>
+      <div class="sv-bar"><div class="sv-fill" style="width:${z.sr}%;background:${c}"></div></div>
+      <div class="sv-humans">${z.hc} humans · ${z.hp}% conf</div>
+      <div class="sv-status" style="color:${c}">${zlb(z.sr)} · ${z.ts.toFixed(1)}h</div>
+      <div class="sv-actions">
+        <button class="sv-act-btn ${z.assigned?'assign done':''}" onclick="quickAssign('${z.id}')">${z.assigned?'✓ Team '+z.assigned:'Assign Team'}</button>
+        <button class="sv-act-btn" onclick="selectZoneAndGo('${z.id}')">View</button>
+      </div>
+    </div>`;
+  });
+}
+function quickAssign(zid){
+  const z=STATE.zones.find(z=>z.id===zid);if(!z||z.assigned){showToast('Zone already assigned','err');return;}
+  const t=STATE.teams.find(t=>t.status==='available');if(!t){showToast('No teams available','err');return;}
+  sendWS('ASSIGN_TEAM',{teamId:t.id,zoneId:zid});
+  // Optimistic UI
+  z.assigned=t.id;t.status='deployed';t.assignedZone=zid;renderAll();
+  showToast(`Team ${t.id} → ${zid}`,'ng');
+}
+function selectZoneAndGo(zid){goTab('d',document.querySelectorAll('.ntab')[1]);selZone(zid);}
+
+// ═══════════════════════════════════════════════════
+// TRAIN DATA WIDGET
+// ═══════════════════════════════════════════════════
+const TRAIN_DATA={
+  samples:12480,accuracy:91.4,precision:88.7,recall:93.2,f1:90.9,
+  features:['Thermal Peak','Sound dB','Vibration mg','CO₂ ppm','Motion %','Time Elapsed','Human Prob','Zone Type'],
+  featureImp:[0.28,0.21,0.17,0.13,0.09,0.07,0.03,0.02],
+  confMatrix:{tp:8241,fp:812,fn:621,tn:2806},
+  classes:['Survivor Present','No Survivor'],
+  history:[{ep:1,acc:72.1},{ep:5,acc:79.4},{ep:10,acc:83.8},{ep:20,acc:87.6},{ep:30,acc:89.2},{ep:40,acc:90.1},{ep:50,acc:91.4}]
+};
+function renderTrainData(){
+  const tc=document.getElementById('trainCards');if(!tc)return;
+  const td=TRAIN_DATA;
+  const cards=[
+    {lbl:'TRAINING SAMPLES',val:td.samples.toLocaleString(),sub:'Labelled disaster events',c:'var(--b)'},
+    {lbl:'MODEL ACCURACY',val:td.accuracy+'%',sub:'Test set · XGBoost v3.2',c:'var(--g)'},
+    {lbl:'RECALL SCORE',val:td.recall+'%',sub:'Survivor detection rate',c:'var(--y)'},
+    {lbl:'F1 SCORE',val:td.f1+'%',sub:'Harmonic mean P+R',c:'var(--v)'},
+  ];
+  tc.innerHTML=cards.map(c=>`<div class="train-card"><div class="train-card-lbl">${c.lbl}</div><div class="train-card-val" style="color:${c.c}">${c.val}</div><div class="train-card-sub">${c.sub}</div></div>`).join('');
+  const tb=document.getElementById('trainBars');if(!tb)return;
+  tb.innerHTML='<div style="font-family:var(--mono);font-size:9px;color:var(--t2);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;border-top:1px solid var(--ln);padding-top:10px;">Feature Importance</div>'+
+    td.features.map((f,i)=>{
+      const imp=td.featureImp[i];const pct=(imp*100).toFixed(0);
+      const c=imp>=0.2?'var(--r)':imp>=0.14?'var(--y)':imp>=0.08?'var(--b)':'var(--t1)';
+      const tag=imp>=0.2?'HIGH':imp>=0.1?'MED':'LOW';
+      const tagBg=imp>=0.2?'var(--rd)':imp>=0.1?'var(--yd)':'rgba(255,255,255,.05)';
+      return `<div class="train-bar-row">
+        <div class="train-bar-lbl">${f}</div>
+        <div class="train-bar-outer"><div class="train-bar-fill" style="width:${imp*100*3.3}%;background:${c}"></div></div>
+        <div class="train-bar-pct" style="color:${c}">${(imp*100).toFixed(1)}%</div>
+        <div class="train-bar-tag" style="background:${tagBg};color:${c}">${tag}</div>
+      </div>`;
+    }).join('');
+}
+
+// ═══════════════════════════════════════════════════
+// PS LOCATION — Rescue Team GPS
+// ═══════════════════════════════════════════════════
+const TEAM_LOCATIONS={
+  'BRAVO':{lat:'32.0124°N',lng:'77.3142°E',addr:'Near Chalal Bridge, Kasol, HP',status:'ACTIVE — En Route',eta:'3 min',lastUpdate:'Live GPS',color:'var(--g)'},
+  'CHARLIE':{lat:'32.0098°N',lng:'77.3185°E',addr:'Kasol Main Market, Parvati Valley',status:'ACTIVE — On Site',eta:'On Site',lastUpdate:'Live GPS',color:'var(--g)'},
+  'ALPHA':{lat:'32.0210°N',lng:'77.3050°E',addr:'PHC Kasol, HP 175105',status:'STANDBY',eta:'8 min',lastUpdate:'Last 2 min',color:'var(--y)'},
+  'DELTA':{lat:'32.0055°N',lng:'77.3220°E',addr:'Parvati River Bank, Kasol',status:'STAGING',eta:'12 min',lastUpdate:'Last 5 min',color:'var(--b)'},
+};
+function renderPSLocations(){
+  const el=document.getElementById('psLocations');if(!el)return;
+  // Build location entries for all known teams
+  const allTeams=[...STATE.teams];
+  // Add extra teams if resource count > teams array
+  const rtRes=STATE.resources.find(r=>r.id==='rescue_teams');
+  const totalTeams=rtRes?rtRes.total:allTeams.length;
+  // Fill up to total with named extras
+  const extraNames=['ALPHA','DELTA','ECHO','FOXTROT'];
+  let ei=0;
+  while(allTeams.length<totalTeams&&ei<extraNames.length){
+    const eName=extraNames[ei++];
+    if(!allTeams.find(t=>t.id===eName)){
+      allTeams.push({id:eName,name:'Team '+eName,role:'Support',members:4,status:'standby',assignedZone:null});
+    }
+  }
+  // Render header
+  el.innerHTML='<div class="ps-loc-header"><div class="ps-loc-title">All Rescue Team Locations</div><span class="ps-loc-badge">● GPS LIVE · '+allTeams.length+' teams tracked</span></div><div class="ps-loc-grid">'+
+    allTeams.map(t=>{
+      const loc=TEAM_LOCATIONS[t.id]||{lat:'32.0'+rnd(10,25,0)+'°N',lng:'77.3'+rnd(10,60,0)+'°E',addr:'Kasol Area, HP',status:t.status.toUpperCase(),eta:rnd(5,20,0)+' min',lastUpdate:'Live GPS',color:'var(--t2)'};
+      const stC=t.status==='deployed'?'var(--g)':t.status==='available'?'var(--y)':'var(--t2)';
+      return `<div class="ps-loc-item">
+        <div class="ps-loc-team" style="color:${loc.color||stC}">${t.name}</div>
+        <div class="ps-loc-role">${t.role} · ${t.members} personnel</div>
+        <div class="ps-loc-coords">📍 ${loc.lat}, ${loc.lng}</div>
+        <div class="ps-loc-addr">${loc.addr}</div>
+        <div class="ps-loc-status-row">
+          <div class="ps-loc-pulse" style="background:${stC}"></div>
+          <span class="ps-loc-status" style="color:${stC}">${t.assignedZone?'▶ '+t.assignedZone:loc.status}</span>
+          <span class="ps-loc-eta" style="margin-left:auto">ETA: ${t.status==='deployed'?'On Site':loc.eta}</span>
+        </div>
+        <div style="font-family:var(--mono);font-size:8px;color:var(--t2);margin-top:3px">GPS: ${loc.lastUpdate}</div>
+      </div>`;
+    }).join('')+'</div>';
+}
+
+// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
+// TEAM POOL — all possible rescue teams
+// ═══════════════════════════════════════════════════
+const ALL_TEAM_POOL=[
+  {id:'ALPHA',  name:'Team ALPHA',  role:'Search & Extraction', members:5, color:'#00c882'},
+  {id:'BRAVO',  name:'Team BRAVO',  role:'Medical Response',    members:3, color:'#2b6fff'},
+  {id:'CHARLIE',name:'Team CHARLIE',role:'Heavy Rescue',        members:4, color:'#f03e5c'},
+  {id:'DELTA',  name:'Team DELTA',  role:'Urban Search',        members:3, color:'#e8930a'},
+  {id:'ECHO',   name:'Team ECHO',   role:'Medical Triage',      members:2, color:'#8b52e8'},
+  {id:'FOXTROT',name:'Team FOXTROT',role:'Support & Logistics', members:4, color:'#00c882'},
+];
+
+// syncTeamsToResource:
+// "deployed" in resource = how many teams are MOBILIZED (visible in dispatch panel)
+// Teams already assigned to zones keep their assignment
+// New teams added appear as 'available' in dispatch
+// Teams removed (if count reduced) that were available are hidden
+function syncTeamsToResource(){
+  const rtRes=STATE.resources.find(r=>r.id==='rescue_teams');
+  if(!rtRes)return;
+  const mobilized=rtRes.deployed; // how many teams are currently mobilized/active
+  const poolSize=Math.min(rtRes.total, ALL_TEAM_POOL.length);
+
+  // Build a map of existing team states to preserve assignments
+  const existing=new Map(STATE.teams.map(t=>[t.id,t]));
+
+  // Show exactly 'mobilized' teams in the dispatch panel
+  // Pull from pool up to mobilized count
+  STATE.teams = ALL_TEAM_POOL.slice(0, Math.min(mobilized, poolSize)).map(tp => {
+    const ex = existing.get(tp.id);
+    if(ex) return ex; // preserve existing assignment/status
+    return {
+      id: tp.id,
+      name: tp.name,
+      role: tp.role,
+      members: tp.members,
+      color: tp.color,
+      status: 'available',
+      assignedZone: null,
+    };
+  });
+
+  updateKPIs();
+  renderTeams();
+  renderPSLocations();
+  renderAIRec();
+  // Update dispatch tab pill
+  const av=STATE.teams.filter(t=>t.status==='available').length;
+  const pill=document.getElementById('tavpill');
+  if(pill) pill.textContent=av+' available';
+}
+function renderRA(){
+  const el=document.getElementById('ra-rows');el.innerHTML='';
+  STATE.resources.forEach(r=>{
+    const pct=Math.round(r.deployed/r.total*100);
+    const statusTxt=pct>=100?'FULL DEPLOY':pct>=70?'HIGH USAGE':'AVAILABLE';
+    const statusCls=pct>=100?'full':pct>=70?'good':'low';
+    const isTeams=r.id==='rescue_teams';
+    el.innerHTML+=`<div class="ra-row" style="${isTeams?'background:rgba(0,200,130,.04);border-radius:8px;padding:8px;margin:-4px;':''}">
+      <div class="ra-name-wrap">
+        <div class="ra-name">${r.name}${isTeams?` <span style="font-family:var(--mono);font-size:8px;color:var(--g);background:var(--gd);padding:1px 6px;border-radius:4px;margin-left:4px;">↻ LIVE SYNC</span>`:''}</div>
+        <div class="ra-sub">${isTeams?`${r.deployed} teams mobilized in Dispatch panel`:r.sub}</div>
+      </div>
+      <div class="ra-bar-outer" title="${r.deployed} of ${r.total} deployed"><div class="ra-bar-inner" style="width:${pct}%;background:${r.color}" id="rabar-${r.id}"></div></div>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <input class="ra-qty-input" type="number" min="0" max="${r.total}" value="${r.deployed}" id="raqty-${r.id}"
+          style="color:${r.color}"
+          onchange="setResourceDirect('${r.id}',this.value,${r.total})"
+          oninput="previewResourceBar('${r.id}',this.value,${r.total})">
+        <span style="font-family:var(--mono);font-size:10px;color:var(--t2);">/${r.total}</span>
+      </div>
+      <div class="ra-status ${statusCls}" id="rast-${r.id}">${statusTxt}</div>
+      <div style="display:flex;gap:5px;">
+        <button class="ra-ctrl-btn" onclick="adjustResource('${r.id}',-1,${r.total})">−</button>
+        <button class="ra-ctrl-btn" onclick="adjustResource('${r.id}',1,${r.total})">+</button>
+      </div>
+    </div>`;
+  });
+}
+function adjustResource(id,delta,total){
+  const r=STATE.resources.find(r=>r.id===id);if(!r)return;
+  r.deployed=clamp(r.deployed+delta,0,r.total);
+  sendWS('UPDATE_RESOURCE',{resourceId:id,deployed:r.deployed});
+  if(id==='rescue_teams')syncTeamsToResource();
+  renderRA();
+  updateKPIs();
+  showToast(`${r.name}: ${r.deployed}/${r.total} deployed`,'ng');
+}
+function setResourceDirect(id,val,total){
+  const r=STATE.resources.find(r=>r.id===id);if(!r)return;
+  const newVal=clamp(Math.round(+val),0,total);
+  r.deployed=newVal;
+  sendWS('UPDATE_RESOURCE',{resourceId:id,deployed:r.deployed});
+  const pct=Math.round(r.deployed/r.total*100);
+  const bar=document.getElementById('rabar-'+id);if(bar)bar.style.width=pct+'%';
+  const inp=document.getElementById('raqty-'+id);if(inp)inp.value=r.deployed;
+  const st=document.getElementById('rast-'+id);
+  if(st){st.className='ra-status '+(pct>=100?'full':pct>=70?'good':'low');st.textContent=pct>=100?'FULL DEPLOY':pct>=70?'HIGH USAGE':'AVAILABLE';}
+  if(id==='rescue_teams')syncTeamsToResource();
+  updateKPIs();
+  showToast(`${r.name}: ${r.deployed}/${r.total} deployed`,'ng');
+}
+function previewResourceBar(id,val,total){
+  const pct=Math.round(clamp(+val,0,total)/total*100);
+  const bar=document.getElementById('rabar-'+id);if(bar)bar.style.width=pct+'%';
+  const st=document.getElementById('rast-'+id);
+  if(st){st.className='ra-status '+(pct>=100?'full':pct>=70?'good':'low');st.textContent=pct>=100?'FULL DEPLOY':pct>=70?'HIGH USAGE':'AVAILABLE';}
+}
+
+// ═══════════════════════════════════════════════════
+// DISPATCH QUEUE
+// ═══════════════════════════════════════════════════
+function renderQueue(){
+  const q=document.getElementById('qlist');q.innerHTML='';
+  [...STATE.zones].sort((a,b)=>pr(b)-pr(a)).forEach((z,i)=>{
+    const cls=zcl(z.sr),c=zco(z.sr),rc=[c,'#e8930a','#2b6fff'][i]||'#2c4a42';
+    const card=document.createElement('div');card.className='zcard '+cls+(selZ===z.id?' zon':'');card.id='zc'+z.id;
+    card.innerHTML=`<div class="zch"><div class="zcid ${cls}">${z.id}</div><div class="rnk" style="color:${rc};border:1px solid ${rc}20">${i+1}</div></div>
+    <div class="zcb"><div class="zcrow">
+      <div class="zcs"><div class="lbl">HUMANS</div><div class="val" style="color:var(--r)">${z.hc}</div></div>
+      <div class="zcs"><div class="lbl">H.PROB</div><div class="val" style="color:var(--y)">${z.hp}%</div></div>
+      <div class="zcs"><div class="lbl">SCORE</div><div class="val" style="color:var(--g)">${pr(z).toFixed(0)}</div></div>
+    </div>
+    <div style="font-family:var(--mono);font-size:8px;color:var(--t2);margin-bottom:2px;">SURVIVAL — ${z.sr.toFixed(1)}%</div>
+    <div class="sbar"><div class="sbf" style="width:${z.sr}%;background:${c}"></div></div>
+    <div class="zcft"><span class="ztag ${z.type==='collapse'?'tc':'tq'}">${z.type}</span><span class="zteam ${z.assigned?'yes':'no'}">${z.assigned?'▶ Team '+z.assigned:'unassigned'}</span></div>
+    <button class="dbtn ${z.assigned?'done':''}" onclick="qkDispatch('${z.id}',event)">${z.assigned?'✓ Team '+z.assigned+' dispatched':'▶ Dispatch Rescue Team'}</button>
+    </div>`;
+    card.addEventListener('click',()=>selZone(z.id));q.appendChild(card);
+  });
+}
+function selZone(id){selZ=id;document.querySelectorAll('.zcard').forEach(c=>c.classList.remove('zon'));const el=document.getElementById('zc'+id);if(el){el.classList.add('zon');el.scrollIntoView({behavior:'smooth',block:'nearest'});}showPop(STATE.zones.find(z=>z.id===id));}
+function showPop(z){
+  if(!z)return;
+  document.getElementById('zpop').style.display='block';
+  document.getElementById('zpname').innerHTML=`<span style="color:${zco(z.sr)}">${z.id}</span> <span style="font-family:var(--mono);font-size:9px;padding:1px 7px;border-radius:5px;background:rgba(255,255,255,.04);color:${zco(z.sr)};margin-left:7px;">${zlb(z.sr)}</span> <span style="font-family:var(--mono);font-size:9px;color:var(--t2);margin-left:7px;">${z.type}·${z.ts.toFixed(1)}h</span>`;
+  document.getElementById('zpgrid').innerHTML=[{l:'HUMANS',v:z.hc,c:'var(--r)'},{l:'H.PROB',v:z.hp+'%',c:'var(--y)'},{l:'SURVIVAL',v:z.sr.toFixed(1)+'%',c:zco(z.sr)},{l:'AI SCORE',v:pr(z).toFixed(0),c:'var(--g)'}].map(m=>`<div class="zpm"><div class="zpml">${m.l}</div><div class="zpmv" style="color:${m.c}">${m.v}</div></div>`).join('');
+  document.getElementById('zpsens').innerHTML=[{n:'THERMAL',v:z.sensors.thermal+'°C'},{n:'SOUND',v:z.sensors.sound+' dB'},{n:'VIBRATION',v:z.sensors.vibration+' mg'},{n:'CO₂',v:z.sensors.co2+' ppm'},{n:'MOTION',v:z.sensors.motion+'%'},{n:'STATUS',v:zlb(z.sr)}].map(s=>`<div class="zps"><div class="zpsl">${s.n}</div><div class="zpsv" style="color:var(--g)">${s.v}</div></div>`).join('');
+  const dispatchable=STATE.teams.filter(t=>t.status==='available');
+  const pa=document.getElementById('zpactions');pa.innerHTML='';
+  if(!z.assigned&&dispatchable.length>0){
+    dispatchable.forEach(t=>{
+      const btn=document.createElement('button');btn.className='zp-action-btn dispatch';
+      btn.textContent=`▶ Assign Team ${t.id}`;
+      btn.onclick=()=>{sendWS('ASSIGN_TEAM',{teamId:t.id,zoneId:z.id});z.assigned=t.id;t.status='deployed';t.assignedZone=z.id;renderAll();showPop(z);showToast(`Team ${t.id} → ${z.id}`,'ng');};
+      pa.appendChild(btn);
+    });
+  } else if(z.assigned){
+    const btn=document.createElement('button');btn.className='zp-action-btn dispatch done';
+    btn.textContent=`✓ Team ${z.assigned} Deployed`;
+    pa.appendChild(btn);
+    const rb=document.createElement('button');rb.className='zp-action-btn recall';
+    rb.textContent='Recall Team';
+    rb.onclick=()=>{const t=STATE.teams.find(t=>t.id===z.assigned);if(t){sendWS('RECALL_TEAM',{teamId:t.id});t.status='available';t.assignedZone=null;z.assigned=null;renderAll();showPop(z);showToast(`Team ${t.id} recalled`,'ng');}};
+    pa.appendChild(rb);
+  }
+}
+function closePop(){selZ=null;document.getElementById('zpop').style.display='none';}
+function renderTeams(){
+  const p=document.getElementById('tlist');if(!p)return;p.innerHTML='';
+  const av=STATE.teams.filter(t=>t.status==='available').length;
+  const pill=document.getElementById('tavpill');
+  if(pill)pill.textContent=STATE.teams.length+' mobilized · '+av+' available';
+  if(STATE.teams.length===0){
+    p.innerHTML='<div style="padding:16px;font-family:var(--mono);font-size:11px;color:var(--t2);text-align:center;">No teams mobilized.<br>Increase Rescue Teams in<br>Overview → Resource Allocation.</div>';
+    return;
+  }
+  STATE.teams.forEach(t=>{
+    const sc=t.status==='available'?'pg2':t.status==='deployed'?'pr2':'py2';
+    const statusLabel=t.status==='available'?'AVAILABLE':t.status==='deployed'?'DEPLOYED':'STANDBY';
+    const loc=TEAM_LOCATIONS[t.id];
+    const locHtml=loc
+      ?`<div style="font-family:var(--mono);font-size:9px;color:var(--g);margin-top:5px;display:flex;align-items:center;gap:4px;">
+          <span>📍</span><span>${loc.lat}, ${loc.lng}</span>
+         </div>
+         <div style="font-family:var(--mono);font-size:8px;color:var(--t2);margin-top:1px;">${loc.addr}</div>`
+      :`<div style="font-family:var(--mono);font-size:9px;color:var(--t2);margin-top:4px;">📍 GPS syncing...</div>`;
+    const d=document.createElement('div');d.className='tcard';
+    d.innerHTML=`
+      <div class="tctop">
+        <div>
+          <div class="tcname" style="color:${t.color||'var(--t0)'}">${t.name}</div>
+          <div class="tcspec">${t.role}</div>
+        </div>
+        <span class="pill ${sc}">${statusLabel}</span>
+      </div>
+      <div class="tcmem">${t.members} personnel</div>
+      ${t.assignedZone?`<div class="tczone">▶ ${t.assignedZone}</div>`:''}
+      ${locHtml}
+      <button class="tcbtn" onclick="assignTeamWS('${t.id}')" ${t.status!=='available'?'disabled':''}>
+        ${t.status==='available'?'ASSIGN TO SELECTED ZONE':'IN FIELD — DEPLOYED'}
+      </button>
+      ${t.status==='deployed'?`<button class="tc-recall-btn" onclick="recallTeam('${t.id}')">RECALL TEAM</button>`:''}`;
+    p.appendChild(d);
+  });
+}
+function assignTeamWS(tid){
+  if(!selZ){showToast('Select a zone on the map first','err');return;}
+  const z=STATE.zones.find(z=>z.id===selZ),t=STATE.teams.find(t=>t.id===tid);
+  if(!t||t.status!=='available')return;if(z.assigned){showToast('Zone already has a team','err');return;}
+  sendWS('ASSIGN_TEAM',{teamId:tid,zoneId:selZ});
+  z.assigned=tid;t.status='deployed';t.assignedZone=selZ;renderAll();showToast(`Team ${tid} → ${selZ}`,'ng');
+}
+function recallTeam(tid){
+  const t=STATE.teams.find(t=>t.id===tid);if(!t)return;
+  sendWS('RECALL_TEAM',{teamId:tid});
+  const z=STATE.zones.find(z=>z.id===t.assignedZone);if(z)z.assigned=null;
+  t.status='available';t.assignedZone=null;renderAll();showToast(`Team ${tid} recalled`,'ng');
+}
+function qkDispatch(zid,e){e.stopPropagation();const z=STATE.zones.find(z=>z.id===zid);if(z.assigned){showToast('Already assigned','err');return;}const t=STATE.teams.find(t=>t.status==='available');if(!t){showToast('No teams available','err');return;}selZ=zid;assignTeamWS(t.id);}
+function renderAIRec(){
+  const b=document.getElementById('arbody');b.innerHTML='';
+  const op=[...STATE.zones].filter(z=>!z.assigned&&z.hc>0).sort((a,b)=>pr(b)-pr(a)).slice(0,3);
+  if(!op.length){b.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--g);padding:4px 0">✓ All zones covered</div>';return;}
+  op.forEach((z,i)=>{b.innerHTML+=`<div class="arrow"><div class="arrn">#${i+1}</div><div class="arinfo"><div class="arzn" style="color:${zco(z.sr)}">${z.id}</div><div class="armeta">${z.hc}p · SR ${z.sr.toFixed(1)}% · ${z.ts.toFixed(1)}h</div></div><div class="arsc" style="color:${zco(z.sr)}">${pr(z).toFixed(0)}</div></div>`;});
+}
+
+// ═══════════════════════════════════════════════════
+// MAP (full terrain + sector zones)
+// ═══════════════════════════════════════════════════
+const cv=document.getElementById('mcanvas'),ctx=cv.getContext('2d');
+let mW=0,mH=0,mRaf=0;
+function rsMap(){const w=document.getElementById('mwrap');mW=cv.width=w.offsetWidth;mH=cv.height=w.offsetHeight;}
+function animMap(){
+  if(!mW||!mH){mRaf=requestAnimationFrame(animMap);return;}
+  ctx.clearRect(0,0,mW,mH);const t=Date.now()/1000;
+  ctx.fillStyle='#040c10';ctx.fillRect(0,0,mW,mH);
+  // terrain
+  [[0,0,.4,.35,'rgba(18,50,28,.95)'],[.4,0,.6,.38,'rgba(14,40,22,.9)'],[0,.32,.42,.52,'rgba(20,52,30,.95)'],[.42,.38,.58,.6,'rgba(12,34,20,.88)'],[0,.72,.52,.28,'rgba(22,56,32,.9)'],[.5,.6,.5,.4,'rgba(16,42,24,.88)']].forEach(([x,y,w2,h2,c2])=>{ctx.fillStyle=c2;ctx.fillRect(x*mW,y*mH,w2*mW,h2*mH);});
+  for(let i=0;i<220;i++){const fx=(Math.sin(i*7.3)*.5+.5)*mW,fy=(Math.cos(i*5.1)*.5+.5)*mH;ctx.fillStyle=`rgba(0,60,20,${.04+Math.sin(i)*.03})`;ctx.beginPath();ctx.arc(fx,fy,1.5+Math.sin(i*2)*.6,0,Math.PI*2);ctx.fill();}
+  // river
+  ctx.beginPath();ctx.moveTo(mW*.63,0);ctx.bezierCurveTo(mW*.58,mH*.22,mW*.65,mH*.42,mW*.61,mH*.58);ctx.bezierCurveTo(mW*.56,mH*.75,mW*.59,mH*.88,mW*.53,mH);
+  ctx.strokeStyle='rgba(30,100,180,.7)';ctx.lineWidth=11;ctx.stroke();
+  ctx.strokeStyle='rgba(50,140,220,.35)';ctx.lineWidth=5;ctx.stroke();
+  // roads
+  ctx.setLineDash([8,5]);ctx.strokeStyle='rgba(130,120,70,.5)';ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.moveTo(0,mH*.5);ctx.lineTo(mW,mH*.46);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(mW*.32,0);ctx.lineTo(mW*.4,mH*.5);ctx.lineTo(mW*.38,mH);ctx.stroke();
+  ctx.setLineDash([]);
+  // grid
+  ctx.strokeStyle='rgba(255,255,255,.025)';ctx.lineWidth=1;
+  for(let x=0;x<mW;x+=50){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,mH);ctx.stroke();}
+  for(let y=0;y<mH;y+=50){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(mW,y);ctx.stroke();}
+  // zones
+  STATE.zones.forEach(z=>{
+    const px=z.x*mW,py=z.y*mH,rad=z.r*Math.min(mW,mH),c=zco(z.sr);
+    // pulse rings
+    if(z.hc>0){for(let i=0;i<3;i++){const ph=((t*.42)+i*.33)%1,al=Math.round((1-ph)*.28*255).toString(16).padStart(2,'0');ctx.beginPath();ctx.arc(px,py,rad*(.5+ph),0,Math.PI*2);ctx.strokeStyle=c+al;ctx.lineWidth=1;ctx.stroke();}}
+    // fill
+    const grd=ctx.createRadialGradient(px,py,0,px,py,rad);grd.addColorStop(0,c+'32');grd.addColorStop(1,c+'07');
+    ctx.beginPath();ctx.arc(px,py,rad,0,Math.PI*2);ctx.fillStyle=grd;ctx.fill();
+    // border
+    ctx.beginPath();ctx.arc(px,py,rad,0,Math.PI*2);ctx.strokeStyle=c+(selZ===z.id?'ee':'60');ctx.lineWidth=selZ===z.id?2:1.2;ctx.stroke();
+    // center dot
+    ctx.beginPath();ctx.arc(px,py,6,0,Math.PI*2);ctx.fillStyle=c;ctx.fill();
+    // survivor dots
+    const cnt=Math.min(z.hc,9);
+    for(let i=0;i<cnt;i++){const ang=(i/Math.max(cnt,1))*Math.PI*2-Math.PI/2,dx=px+Math.cos(ang)*rad*.46,dy=py+Math.sin(ang)*rad*.46;const pulse=Math.sin(t*1.4+i*.9)*.28+.72;ctx.beginPath();ctx.arc(dx,dy,3.8*pulse,0,Math.PI*2);ctx.fillStyle=c+'cc';ctx.fill();}
+    // labels
+    ctx.textAlign='center';
+    ctx.font='bold 11px Inter';ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillText(z.id,px+1,py-rad-9);
+    ctx.font='bold 11px Inter';ctx.fillStyle=c;ctx.fillText(z.id,px,py-rad-10);
+    ctx.font='10px JetBrains Mono';ctx.fillStyle='rgba(220,240,230,.65)';ctx.fillText('SR:'+z.sr.toFixed(0)+'% · '+z.hc+'p',px,py-rad+2);
+    if(z.assigned){ctx.font='10px JetBrains Mono';ctx.fillStyle='rgba(0,200,130,.95)';ctx.fillText('▶ Team '+z.assigned,px,py+rad+14);}
+    ctx.textAlign='left';
+  });
+  // HQ
+  ctx.beginPath();ctx.arc(mW*.07,mH*.88,10,0,Math.PI*2);ctx.fillStyle='rgba(43,111,255,.3)';ctx.fill();ctx.strokeStyle='rgba(43,111,255,.8)';ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle='rgba(43,111,255,.9)';ctx.font='bold 10px Inter';ctx.fillText('HQ',mW*.07+14,mH*.88+4);
+  // legend
+  ctx.fillStyle='rgba(4,12,16,.78)';ctx.fillRect(mW*.03,mH*.03,150,66);
+  ctx.strokeStyle='rgba(255,255,255,.07)';ctx.lineWidth=1;ctx.strokeRect(mW*.03,mH*.03,150,66);
+  [{c:'#f03e5c',l:'Critical (SR>75%)'},{c:'#e8930a',l:'High (SR 50-75%)'},{c:'#2b6fff',l:'Medium (<50%)'}].forEach((li2,i)=>{ctx.beginPath();ctx.arc(mW*.03+12,mH*.03+14+i*18,5,0,Math.PI*2);ctx.fillStyle=li2.c;ctx.fill();ctx.font='9px JetBrains Mono';ctx.fillStyle='rgba(220,240,230,.8)';ctx.fillText(li2.l,mW*.03+22,mH*.03+18+i*18);});
+  mRaf=requestAnimationFrame(animMap);
+}
+cv.addEventListener('click',e=>{
+  const rect=cv.getBoundingClientRect();const mx=(e.clientX-rect.left)*(mW/rect.width),my=(e.clientY-rect.top)*(mH/rect.height);
+  let hit=null;STATE.zones.forEach(z=>{if(Math.hypot(mx-z.x*mW,my-z.y*mH)<z.r*Math.min(mW,mH))hit=z;});
+  if(hit)selZone(hit.id);else{selZ=null;document.getElementById('zpop').style.display='none';}
+});
+window.addEventListener('resize',rsMap);
+
+// ═══════════════════════════════════════════════════
+// SENSORS
+// ═══════════════════════════════════════════════════
+const spkH={};
+function getSp(key,val,len=24){if(!spkH[key])spkH[key]=Array.from({length:len},()=>val+rnd(-2,2));spkH[key].push(val);if(spkH[key].length>len)spkH[key].shift();return spkH[key];}
+function drawSp(cid,data,color){setTimeout(()=>{const c=document.getElementById(cid);if(!c)return;const cx2=c.getContext('2d');c.width=c.offsetWidth||130;c.height=28;const mn=Math.min(...data),mx=Math.max(...data),rng=mx-mn||1;cx2.clearRect(0,0,c.width,c.height);cx2.beginPath();data.forEach((v,i)=>{const x=i/(data.length-1)*c.width,y=(1-(v-mn)/rng)*24+2;i===0?cx2.moveTo(x,y):cx2.lineTo(x,y);});cx2.strokeStyle=color;cx2.lineWidth=1.5;cx2.stroke();},0);}
+function sCard(id,lbl,val,unit,color,pct,isAlert){return `<div class="sc${isAlert?' alert-high':''}"><div class="sclbl">${lbl}</div><div class="scval" style="color:${color}">${val}</div><div class="scunit">${unit}</div><div class="scprog"><div class="scpf" style="width:${pct}%;background:${color}"></div></div><div class="spkwrap"><canvas class="spk" id="spk${id}"></canvas></div></div>`;}
+function bSensBtns(){const r=document.getElementById('szbts');STATE.zones.forEach(z=>{const b=document.createElement('button');b.className='szbt'+(z.id===selSZ?' on':'');b.textContent=z.id;b.onclick=()=>{selSZ=z.id;document.querySelectorAll('.szbt').forEach(x=>x.classList.remove('on'));b.classList.add('on');rSens();};r.appendChild(b);});}
+function rSens(){
+  const z=STATE.zones.find(z=>z.id===selSZ)||STATE.zones[0];if(!z)return;const s=z.sensors;
+  const tA=s.thermal>=36.5,dA=s.sound>=45,cA=s.co2>=1500;
+  const banner=document.getElementById('critBanner'),ct=document.getElementById('critText');
+  const al=[];if(tA)al.push('Thermal '+s.thermal+'°C');if(dA)al.push('Sound '+s.sound+'dB');if(cA)al.push('CO₂ '+s.co2+'ppm');
+  if(al.length){banner.style.display='flex';ct.textContent='⚠ ALERT: '+al.join(' · ');}else banner.style.display='none';
+  document.getElementById('sgt').innerHTML=[sCard('t1','THERMAL PEAK',s.thermal,'°C','#f03e5c',((s.thermal-10)/30*100).toFixed(0),tA),sCard('t2','BODY SIGNATURE',rnd(.6,.95).toFixed(2),'score','#f03e5c',rnd(60,95,0),tA),sCard('t3','HEAT DELTA',rnd(4,14).toFixed(1),'°C above bg','#e8930a',70,false),sCard('t4','PULSE VARIANCE',rnd(.05,.28).toFixed(2),'°C/s','#e8930a',42,false)].join('');
+  document.getElementById('sgs').innerHTML=[sCard('s1','SOUND PEAK',s.sound,'dB','#2b6fff',(s.sound/90*100).toFixed(0),dA),sCard('s2','RHYTHM SCORE',rnd(.55,.92).toFixed(2),'','#2b6fff',rnd(55,92,0),false),sCard('s3','FREQ PEAK',rnd(200,1800,0),'Hz','#6080ff',55,false),sCard('s4','HUMAN CALL',rnd(.3,.88).toFixed(2),'prob','#2b6fff',rnd(30,88,0),dA)].join('');
+  document.getElementById('sgm').innerHTML=[sCard('m1','VIBRATION',s.vibration,'mg','#e8930a',(s.vibration/80*100).toFixed(0),s.vibration>50),sCard('m2','MOTION DELTA',s.motion,'%','#e8930a',(s.motion/15*100).toFixed(0),s.motion>8),sCard('m3','IR TRIGGERS',rnd(2,12,0),'/min','#e8a030',60,false),sCard('m4','OPT FLOW',rnd(.3,.88).toFixed(2),'','#e8930a',55,false)].join('');
+  document.getElementById('sge').innerHTML=[sCard('e1','CO₂ LEVEL',s.co2,'ppm','#00c882',((s.co2-400)/1600*100).toFixed(0),cA),sCard('e2','OXYGEN',rnd(17,21).toFixed(1),'%','#00c882',rnd(70,95,0),false),sCard('e3','GAS LEAK',rnd(0,.3).toFixed(2),'idx','#f03e5c',rnd(0,30,0),false),sCard('e4','AMB TEMP',rnd(22,36).toFixed(1),'°C','#00c882',60,false)].join('');
+  const sds=[['spkt1',getSp('t1_'+selSZ,s.thermal),'#f03e5c'],['spkt2',getSp('t2_'+selSZ,.75,24).map(v=>v*100),'#f03e5c'],['spks1',getSp('s1_'+selSZ,s.sound),'#2b6fff'],['spks2',getSp('s2_'+selSZ,.72,24).map(v=>v*100),'#2b6fff'],['spkm1',getSp('m1_'+selSZ,s.vibration),'#e8930a'],['spkm2',getSp('m2_'+selSZ,s.motion),'#e8930a'],['spke1',getSp('e1_'+selSZ,s.co2),'#00c882'],['spke4',getSp('e4_'+selSZ,28),'#00c882']];
+  sds.forEach(([id,d,c])=>drawSp(id,d,c));
+}
+
+// ═══════════════════════════════════════════════════
+// LIVE FEED (Thermal IR + Satellite)
+// ═══════════════════════════════════════════════════
+function goTab(id,el){
+  document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('on'));
+  document.getElementById('pg'+id).classList.add('on');el.classList.add('on');
+  if(id==='lf'){dronesLaunched?initFeeds():showFeedLocked();}
+  if(id==='d'){setTimeout(()=>{rsMap();},50);}
+  if(id==='td'){renderTrainingPage();}
+}
+function showFeedLocked(){document.getElementById('feedMain').innerHTML=`<div style="grid-column:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:14px;"><div style="font-size:52px">🔒</div><div style="font-family:var(--mono);font-size:14px;color:var(--t1)">Live feed unavailable</div><div style="font-family:var(--mono);font-size:11px;color:var(--t2);max-width:280px;text-align:center;line-height:1.7;">Launch the Drone Fleet from the Response screen first.</div></div>`;}
+function initFeeds(){
+  if(feedInit)return;feedInit=true;
+  const tc=document.getElementById('fzTabs');
+  STATE.zones.forEach((z,i)=>{const b=document.createElement('button');b.className='fztab'+(i===0?' on':'');b.textContent=z.id+' · '+z.hc+'p';b.onclick=()=>{selFeedZone=z.id;document.querySelectorAll('.fztab').forEach(t=>t.classList.remove('on'));b.classList.add('on');renderFeedPanels();};tc.insertBefore(b,document.getElementById('feedModeBtns'));});
+  const mbs=document.getElementById('feedModeBtns');
+  ['Thermal','Satellite','Both'].forEach(m=>{const b=document.createElement('button');b.className='fmb'+(m.toLowerCase()==='both'?' on':'');b.textContent=m;b.onclick=()=>{feedMode=m.toLowerCase();document.querySelectorAll('.fmb').forEach(x=>x.classList.remove('on'));b.classList.add('on');renderFeedPanels();};mbs.appendChild(b);});
+  renderFeedPanels();
+}
+function renderFeedPanels(){
+  const z=STATE.zones.find(z=>z.id===selFeedZone)||STATE.zones[0];const main=document.getElementById('feedMain');main.innerHTML='';
+  Object.values(feedRAFs).forEach(id=>cancelAnimationFrame(id));feedRAFs={};
+  if(feedMode==='thermal'||feedMode==='both'){const p=makeFeedPanel('thermal',z);main.appendChild(p);setTimeout(()=>drawThermalFeed(z,document.getElementById('fcv-thermal')),60);}
+  if(feedMode==='satellite'||feedMode==='both'){const p=makeFeedPanel('satellite',z);main.appendChild(p);setTimeout(()=>drawSatelliteFeed(z,document.getElementById('fcv-satellite')),60);}
+  main.style.gridTemplateColumns=feedMode!=='both'?'1fr':'1fr 1fr';
+}
+function makeFeedPanel(type,z){
+  const isTh=type==='thermal',ac=isTh?'#d8b858':'#1e7fbc';
+  const div=document.createElement('div');div.className='feed-panel';
+  div.innerHTML=`<div class="feed-ph"><div class="feed-ph-title" style="color:${ac}">${isTh?'IR THERMAL IMAGING':'SATELLITE DAMAGE ANALYSIS'}</div><div class="feed-ph-meta">${z.id} · ${isTh?'Drone IR Camera':'Airbus DS · CNES'}</div></div>
+  <div class="feed-canvas-wrap">
+    <canvas class="feed-canvas" id="fcv-${type}"></canvas>
+    <div class="feed-scan-h" style="background:linear-gradient(90deg,transparent,${ac}70,transparent)"></div>
+    <div class="fc-corners"><div class="fc fc-tl" style="border-color:${ac}80"></div><div class="fc fc-tr" style="border-color:${ac}80"></div><div class="fc fc-bl" style="border-color:${ac}80"></div><div class="fc fc-br" style="border-color:${ac}80"></div></div>
+    <div class="feed-rec-badge"><div class="rec-dot"></div>LIVE</div>
+    <div class="feed-overlay-info">
+      <div class="feed-tag-main" style="color:${ac};border-color:${ac}60">${isTh?(z.hc>0?z.hc+' HEAT SIGNATURES DETECTED':'SCANNING...'):'DAMAGE ZONES MAPPED'}</div>
+      <div class="feed-tag-sub">${isTh?('PEAK: '+z.sensors.thermal+'°C · '+z.hp+'% confidence'):'SR: '+z.sr.toFixed(0)+'% · '+zlb(z.sr)}</div>
+    </div>
+    ${isTh?`<div class="thermal-scale"><div class="tsc-lbl">38°C</div><canvas id="tscale-c" width="10" height="80"></canvas><div class="tsc-lbl">33°C</div></div>`:''}
+  </div>
+  <div class="feed-ftr">
+    <span class="feed-stat">ZONE: <span>${z.id}</span></span>
+    <span class="feed-stat">${isTh?'TEMP: <span style="color:'+ac+'">'+z.sensors.thermal+'°C</span>':'DAMAGE DOTS: <span style="color:'+ac+'">'+(40+z.hc*8)+'</span>'}</span>
+    <span class="feed-stat">SIGNAL: <span style="color:var(--g)">STRONG</span></span>
+    <span class="feed-stat">${new Date().toTimeString().slice(0,8)}</span>
+  </div>`;
+  if(isTh)setTimeout(()=>{const sc=document.getElementById('tscale-c');if(!sc)return;const c2=sc.getContext('2d');const g=c2.createLinearGradient(0,0,0,80);g.addColorStop(0,'#fff8e0');g.addColorStop(.25,'#ffe080');g.addColorStop(.5,'#ff8020');g.addColorStop(.75,'#c02010');g.addColorStop(1,'#200010');c2.fillStyle=g;c2.fillRect(0,0,10,80);},80);
+  return div;
+}
+function drawThermalFeed(z,canvas){
+  if(!canvas)return;const ctx2=canvas.getContext('2d');let W=0,H=0;
+  const survivors=[];for(let i=0;i<Math.min(z.hc,6);i++)survivors.push({bx:.12+i*.13+Math.random()*.05,by:.25+Math.random()*.35,moving:Math.random()>.4});
+  function resize(){W=canvas.offsetWidth;H=canvas.offsetHeight;canvas.width=W;canvas.height=H;}resize();
+  function draw(){
+    if(!canvas.parentNode)return;const t=Date.now()/1000;
+    if(canvas.width!==canvas.offsetWidth||canvas.height!==canvas.offsetHeight)resize();
+    if(!W||!H){feedRAFs['thermal']=requestAnimationFrame(draw);return;}
+    ctx2.fillStyle='#090909';ctx2.fillRect(0,0,W,H);
+    for(let gx=0;gx<W;gx+=4){for(let gy=0;gy<H;gy+=4){const n=Math.sin(gx*.08+t*.02)*Math.sin(gy*.06-t*.015)*.5+.5;const v=Math.floor(26+n*22);ctx2.fillStyle=`rgb(${v},${v},${v})`;ctx2.fillRect(gx,gy,4,4);}}
+    [.1,.19,.29,.44,.52,.65,.74,.84,.92].forEach((tx,i)=>{const tree_x=tx*W,tree_y=(.1+Math.sin(i*3.7)*.18)*H;const tg=ctx2.createRadialGradient(tree_x,tree_y,0,tree_x,tree_y,16);const tv=36+Math.sin(i*1.8+t*.02)*4;tg.addColorStop(0,`rgb(${tv},${tv},${tv})`);tg.addColorStop(1,'rgba(22,22,22,0)');ctx2.fillStyle=tg;ctx2.fillRect(tree_x-18,tree_y-18,36,36);ctx2.fillStyle='rgba(18,18,18,.8)';ctx2.fillRect(tree_x-2,tree_y+8,4,H*.14);});
+    ctx2.fillStyle='rgba(65,65,65,.9)';ctx2.save();ctx2.translate(W*.3,H*.44);ctx2.rotate(-.15);ctx2.fillRect(-W*.23,0,W*.46,7);ctx2.restore();
+    ctx2.save();ctx2.translate(W*.56,H*.54);ctx2.rotate(.2);ctx2.fillRect(-W*.18,0,W*.36,5);ctx2.restore();
+    survivors.forEach((s,i)=>{
+      const sx=s.bx*W+(s.moving?Math.sin(t*.4+i*2)*8:0),sy=s.by*H+(s.moving?Math.cos(t*.35+i*1.5)*4:0);
+      const og=ctx2.createRadialGradient(sx,sy,0,sx,sy,26);og.addColorStop(0,'rgba(230,230,210,.9)');og.addColorStop(.4,'rgba(190,190,170,.55)');og.addColorStop(.8,'rgba(110,110,90,.2)');og.addColorStop(1,'rgba(0,0,0,0)');ctx2.fillStyle=og;ctx2.fillRect(sx-28,sy-28,56,56);
+      ctx2.beginPath();ctx2.arc(sx,sy-13,7,0,Math.PI*2);ctx2.fillStyle=`rgb(${232+Math.floor(Math.random()*8)},${228+Math.floor(Math.random()*6)},${200+Math.floor(Math.random()*12)})`;ctx2.fill();
+      ctx2.fillStyle=`rgb(${238+Math.floor(Math.random()*6)},${234+Math.floor(Math.random()*5)},${215+Math.floor(Math.random()*10)})`;ctx2.fillRect(sx-6,sy-8,12,17);
+      ctx2.fillStyle=`rgb(${200+Math.floor(Math.random()*18)},${195+Math.floor(Math.random()*16)},${172+Math.floor(Math.random()*18)})`;ctx2.fillRect(sx-12,sy-6,6,13);ctx2.fillRect(sx+6,sy-6,6,13);
+      ctx2.fillStyle=`rgb(${183+Math.floor(Math.random()*18)},${178+Math.floor(Math.random()*16)},${157+Math.floor(Math.random()*18)})`;ctx2.fillRect(sx-5,sy+9,5,14);ctx2.fillRect(sx+1,sy+9,5,14);
+      ctx2.strokeStyle='rgba(255,255,200,.6)';ctx2.lineWidth=1;ctx2.setLineDash([3,3]);ctx2.strokeRect(sx-17,sy-21,34,50);ctx2.setLineDash([]);
+      ctx2.font='8px JetBrains Mono';ctx2.fillStyle='rgba(255,255,200,.8)';ctx2.textAlign='center';ctx2.fillText('H'+(i+1)+' '+z.sensors.thermal.toFixed(1)+'°',sx,sy-24);ctx2.textAlign='left';
+    });
+    [{x:.15,y:.65},{x:.4,y:.7},{x:.6,y:.6},{x:.75,y:.75},{x:.3,y:.8},{x:.55,y:.78}].forEach((p,i)=>{const rg=ctx2.createRadialGradient(p.x*W,p.y*H,0,p.x*W,p.y*H,20+Math.sin(i*2+t*.03)*4);const rv=48+i*5;rg.addColorStop(0,`rgba(${rv},${rv},${rv},.65)`);rg.addColorStop(1,'rgba(0,0,0,0)');ctx2.fillStyle=rg;ctx2.fillRect(p.x*W-22,p.y*H-22,44,44);});
+    for(let n=0;n<280;n++){const nx=Math.random()*W,ny=Math.random()*H,nv=Math.random()*10-5;ctx2.fillStyle=`rgba(${120+nv},${120+nv},${120+nv},.05)`;ctx2.fillRect(nx,ny,2,2);}
+    ctx2.strokeStyle='rgba(255,100,30,.05)';ctx2.lineWidth=1;for(let x=0;x<W;x+=24){ctx2.beginPath();ctx2.moveTo(x,0);ctx2.lineTo(x,H);ctx2.stroke();}for(let y=0;y<H;y+=24){ctx2.beginPath();ctx2.moveTo(0,y);ctx2.lineTo(W,y);ctx2.stroke();}
+    const scanY=(t*.04*H)%H;ctx2.fillStyle='rgba(255,255,255,.035)';ctx2.fillRect(0,scanY,W,1);
+    ctx2.fillStyle='rgba(0,0,0,.6)';ctx2.fillRect(0,H-20,W,20);
+    ctx2.font='8px JetBrains Mono';ctx2.fillStyle='rgba(220,220,180,.8)';
+    ctx2.fillText(`${new Date().toTimeString().slice(0,8)}  32.0142°N 77.3145°E  ALT:52m  DR-0${Math.floor(Math.random()*4)+1}  ${z.sensors.thermal.toFixed(1)}°C MAX`,6,H-7);
+    feedRAFs['thermal']=requestAnimationFrame(draw);
+  }
+  draw();
+}
+function drawSatelliteFeed(z,canvas){
+  if(!canvas)return;const ctx2=canvas.getContext('2d');let W=0,H=0;
+  const damageDots=[];const clPts=z.type==='collapse'?[{cx:.34,cy:.42,r:.17},{cx:.6,cy:.58,r:.12}]:[{cx:.4,cy:.5,r:.15},{cx:.65,cy:.45,r:.1}];
+  for(let i=0;i<42+z.hc*8;i++){const cl=clPts[Math.floor(Math.random()*clPts.length)];const ang=Math.random()*Math.PI*2,dist=Math.random()*cl.r;damageDots.push({x:cl.cx+Math.cos(ang)*dist,y:cl.cy+Math.sin(ang)*dist,s:Math.random()>.7?'lg':'sm'});}
+  function resize(){W=canvas.offsetWidth;H=canvas.offsetHeight;canvas.width=W;canvas.height=H;}resize();
+  function draw(){
+    if(!canvas.parentNode)return;const t=Date.now()/1000;
+    if(canvas.width!==canvas.offsetWidth||canvas.height!==canvas.offsetHeight)resize();
+    if(!W||!H){feedRAFs['satellite']=requestAnimationFrame(draw);return;}
+    ctx2.fillStyle='#3a5a68';ctx2.fillRect(0,0,W,H);
+    [{x:.0,y:.0,w:.45,h:.38,c:'#8a6840'},{x:.45,y:.0,w:.55,h:.32,c:'#7a6035'},{x:.0,y:.38,w:.38,h:.35,c:'#7c6238'},{x:.38,y:.32,w:.4,h:.42,c:'#886845'},{x:.0,y:.73,w:.5,h:.27,c:'#7e6540'},{x:.5,y:.72,w:.5,h:.28,c:'#7a6238'}].forEach(b=>{ctx2.fillStyle=b.c;ctx2.fillRect(b.x*W,b.y*H,b.w*W,b.h*H);});
+    for(let i=0;i<130;i++){const bx=(Math.sin(i*7.3)*.5+.5)*W,by2=(Math.cos(i*5.1)*.5+.5)*H;const bw=8+Math.random()*18,bh=5+Math.random()*12;ctx2.fillStyle=Math.random()>.5?'rgba(120,90,50,.4)':'rgba(60,40,20,.3)';ctx2.fillRect(bx-bw/2,by2-bh/2,bw,bh);}
+    ctx2.beginPath();ctx2.moveTo(W*.52,0);ctx2.bezierCurveTo(W*.48,H*.2,W*.55,H*.45,W*.5,H*.6);ctx2.bezierCurveTo(W*.45,H*.78,W*.52,H*.9,W*.48,H);
+    ctx2.strokeStyle='#1e6a9a';ctx2.lineWidth=22;ctx2.stroke();ctx2.strokeStyle='#2882bc';ctx2.lineWidth=12;ctx2.stroke();ctx2.strokeStyle='#38a0d8';ctx2.lineWidth=4;ctx2.stroke();
+    ctx2.strokeStyle='rgba(200,185,140,.45)';ctx2.lineWidth=3;
+    [[0,H*.33,W,H*.3],[0,H*.62,W,H*.58],[W*.22,0,W*.25,H],[W*.65,0,W*.63,H]].forEach(([x1,y1,x2,y2])=>{ctx2.beginPath();ctx2.moveTo(x1,y1);ctx2.lineTo(x2,y2);ctx2.stroke();});
+    [[.15,.08],[.72,.12],[.85,.35]].forEach(([cx2,cy2])=>{const cg=ctx2.createRadialGradient(cx2*W,cy2*H,0,cx2*W,cy2*H,28);cg.addColorStop(0,'rgba(255,255,255,.2)');cg.addColorStop(1,'rgba(255,255,255,0)');ctx2.fillStyle=cg;ctx2.fillRect(cx2*W-32,cy2*H-18,64,36);});
+    clPts.forEach(cl=>{ctx2.beginPath();ctx2.arc(cl.cx*W,cl.cy*H,cl.r*Math.min(W,H),0,Math.PI*2);ctx2.fillStyle='rgba(255,50,30,.06)';ctx2.fill();ctx2.strokeStyle='rgba(255,80,40,.3)';ctx2.lineWidth=1.5;ctx2.setLineDash([4,4]);ctx2.stroke();ctx2.setLineDash([]);});
+    damageDots.forEach(dd=>{const dx=dd.x*W,dy=dd.y*H;if(dd.s==='lg'){ctx2.fillStyle='rgba(255,30,20,.88)';ctx2.fillRect(dx-4,dy-4,8,8);}else{ctx2.fillStyle='rgba(255,40,25,.75)';ctx2.fillRect(dx-2,dy-2,4,4);}});
+    const sL=(t*.05*H)%H;ctx2.fillStyle='rgba(0,120,255,.05)';ctx2.fillRect(0,sL-1,W,2);
+    ctx2.strokeStyle='rgba(0,100,180,.07)';ctx2.lineWidth=1;for(let gx=0;gx<W;gx+=40){ctx2.beginPath();ctx2.moveTo(gx,0);ctx2.lineTo(gx,H);ctx2.stroke();}for(let gy=0;gy<H;gy+=40){ctx2.beginPath();ctx2.moveTo(0,gy);ctx2.lineTo(W,gy);ctx2.stroke();}
+    ctx2.fillStyle='rgba(0,0,0,.5)';ctx2.fillRect(W-162,0,162,20);ctx2.font='8px JetBrains Mono';ctx2.fillStyle='rgba(200,200,200,.7)';ctx2.fillText('Imagery © Airbus DS | CNES',W-160,13);
+    ctx2.beginPath();ctx2.arc(W*.42,H*.46,10+Math.sin(t*1.2)*2,0,Math.PI*2);ctx2.strokeStyle='rgba(0,220,130,.7)';ctx2.lineWidth=2;ctx2.stroke();
+    ctx2.fillStyle='rgba(0,220,130,.9)';ctx2.font='bold 10px Inter';ctx2.fillText(z.id,W*.42+14,H*.46+4);
+    ctx2.fillStyle='rgba(0,0,0,.62)';ctx2.fillRect(0,H-22,W,22);ctx2.font='8px JetBrains Mono';ctx2.fillStyle='rgba(200,220,200,.8)';
+    ctx2.fillText(`KASOL, HP · 32.0°N 77.3°E · ${new Date().toDateString()} · DAMAGE: ${damageDots.length} STRUCTURES CONFIRMED`,6,H-8);
+    feedRAFs['satellite']=requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+// ═══════════════════════════════════════════════════
+// DRONE TABLE & CONTROLS
+// ═══════════════════════════════════════════════════
+const dpill={mission:'pg2',returning:'py2',charging:'pb2',standby:'pv2'};
+function renderDroneTable(){
+  const body=document.getElementById('droneTableBody');body.innerHTML='';
+  STATE.drones.forEach(d=>{
+    const bc=d.battery>=50?'#00c882':d.battery>=20?'#e8930a':'#f03e5c';
+    const zoneC=d.zone?zco(STATE.zones.find(z=>z.id===d.zone)?.sr||50):'#2c4a42';
+    const actionBtn=d.status==='mission'||d.status==='returning'?`<button class="dr-ctrl-btn rtb-btn" onclick="droneRTB('${d.id}')">RTB</button>`:d.status==='standby'?`<select id="ddisp-${d.id}" style="background:var(--s3);border:1px solid var(--ln);color:var(--t2);padding:3px;border-radius:4px;font-family:var(--mono);font-size:9px;"><option value="">Dispatch to...</option>${STATE.zones.map(z=>`<option value="${z.id}">${z.id}</option>`).join('')}</select><button class="dr-ctrl-btn disp-btn" style="margin-left:5px" onclick="droneDispatch('${d.id}')">GO</button>`:'—';
+    body.innerHTML+=`<div class="drone-table-row"><div class="dr-id" style="color:var(--t0)">${d.id}</div><div class="dr-task">${d.task}</div><div style="font-family:var(--mono);font-size:11px;color:${zoneC}">${d.zone||'—'}</div><div class="dr-bat-wrap"><div class="dr-bat-track"><div class="dr-bat-fill" style="width:${d.battery}%;background:${bc}"></div></div><div class="dr-bat-pct" style="color:${bc}">${d.battery.toFixed(0)}%</div></div><span class="pill ${dpill[d.status]}">${d.status}</span><div style="display:flex;align-items:center;gap:4px">${actionBtn}</div></div>`;
+  });
+  document.getElementById('drone-mission-count').textContent=STATE.drones.filter(d=>d.status==='mission').length;
+  document.getElementById('drone-returning-count').textContent=STATE.drones.filter(d=>d.status==='returning').length;
+  document.getElementById('drone-charging-count').textContent=STATE.drones.filter(d=>d.status==='charging').length;
+  document.getElementById('drone-standby-count').textContent=STATE.drones.filter(d=>d.status==='standby').length;
+}
+function droneRTB(id){sendWS('DRONE_RTB',{droneId:id});const d=STATE.drones.find(d=>d.id===id);if(d){d.status='returning';d.zone=null;d.task='Manual RTB ordered';}renderDroneTable();showToast(`${id} returning to base`,'ng');}
+function droneDispatch(id){const sel=document.getElementById('ddisp-'+id);if(!sel||!sel.value){showToast('Select a zone','err');return;}sendWS('DISPATCH_DRONE',{droneId:id,zoneId:sel.value});const d=STATE.drones.find(d=>d.id===id);if(d){d.status='mission';d.zone=sel.value;d.task='Dispatched to '+sel.value;}renderDroneTable();showToast(`${id} → ${sel.value}`,'ng');}
+
+// ═══════════════════════════════════════════════════
+// COMMANDER PANEL
+// ═══════════════════════════════════════════════════
+let selBcastSev='CRITICAL';
+function setSev(btn,sev){selBcastSev=sev;document.querySelectorAll('.sev-btn').forEach(b=>{b.classList.remove('on');});btn.classList.add('on');}
+function sendBroadcast(){
+  const msg=document.getElementById('bcastMsg').value.trim();
+  if(!msg){showToast('Enter a message first','err');return;}
+  sendWS('BROADCAST_ALERT',{message:msg,severity:selBcastSev});
+  document.getElementById('bcastMsg').value='';
+  showToast('📢 Alert broadcast to all units','ng');
+}
+function renderDroneCtrl(){
+  const el=document.getElementById('droneCtrlList');el.innerHTML='';
+  STATE.drones.forEach(d=>{
+    const bc=d.battery>=50?'#00c882':d.battery>=20?'#e8930a':'#f03e5c';
+    const zoneText=d.zone||'—';
+    const actionHtml=d.status==='mission'||d.status==='returning'?`<button class="dc-btn rtb" onclick="droneRTB('${d.id}')">RTB</button>`:d.status==='standby'?`<button class="dc-btn dispatch-go" onclick="dispatchDroneCmd('${d.id}')">Dispatch</button>`:`<span style="font-size:9px;color:var(--t2)">${d.status}</span>`;
+    el.innerHTML+=`<div class="dc-item"><div class="dc-id" style="color:var(--t0)">${d.id}</div><div class="dc-zone" style="color:${d.zone?zco(STATE.zones.find(z=>z.id===d.zone)?.sr||50):'#304d44'}">${zoneText}</div><div class="dc-bat-mini"><div class="dc-bat-fill" style="width:${d.battery}%;background:${bc}"></div></div><span style="font-family:var(--mono);font-size:9px;color:${bc}">${d.battery.toFixed(0)}%</span>${actionHtml}</div>`;
+  });
+}
+function dispatchDroneCmd(id){
+  const z=STATE.zones.filter(z=>!STATE.drones.find(d=>d.zone===z.id&&d.status==='mission'));
+  if(!z.length){showToast('All zones have drones assigned','err');return;}
+  const target=z[0].id;sendWS('DISPATCH_DRONE',{droneId:id,zoneId:target});
+  const d=STATE.drones.find(d=>d.id===id);if(d){d.status='mission';d.zone=target;d.task='Dispatched to '+target;}
+  renderDroneCtrl();renderDroneTable();showToast(`${id} → ${target}`,'ng');
+}
+function renderResCtrl(){
+  const el=document.getElementById('resCtrlList');el.innerHTML='';
+  STATE.resources.forEach(r=>{
+    const pct=Math.round(r.deployed/r.total*100);
+    el.innerHTML+=`<div class="res-ctrl-item">
+      <div class="res-ctrl-header">
+        <div class="res-ctrl-name">${r.name} <span style="font-family:var(--mono);font-size:9px;color:var(--t2)">— ${r.sub}</span></div>
+        <div class="res-ctrl-val" style="color:${r.color}" id="rcv-${r.id}">${r.deployed} / ${r.total}</div>
+      </div>
+      <input type="range" class="res-slider" min="0" max="${r.total}" value="${r.deployed}" id="rsl-${r.id}"
+        oninput="liveSlider('${r.id}',this.value,${r.total})"
+        onchange="commitSlider('${r.id}',this.value,${r.total})"
+        style="accent-color:${r.color}">
+    </div>`;
+  });
+}
+function liveSlider(id,val,total){const r=STATE.resources.find(r=>r.id===id);if(r){r.deployed=+val;const el=document.getElementById('rcv-'+id);if(el)el.textContent=val+' / '+total;if(id==='rescue_teams'){syncTeamsToResource();updateKPIs();}}}
+function commitSlider(id,val,total){sendWS('UPDATE_RESOURCE',{resourceId:id,deployed:+val});if(id==='rescue_teams'){syncTeamsToResource();}updateKPIs();renderRA();showToast(`${STATE.resources.find(r=>r.id===id)?.name}: ${val}/${total} deployed`,'ng');}
+function renderZoneOverride(){
+  const el=document.getElementById('zoneOverrideList');if(!el)return;el.innerHTML='';
+  STATE.zones.forEach(z=>{
+    const c=zco(z.sr);
+    el.innerHTML+=`<div style="padding:8px 0;border-bottom:1px solid var(--ln);display:grid;grid-template-columns:110px 1fr 70px;align-items:center;gap:8px;">
+      <div style="font-family:var(--mono);font-size:10px;font-weight:700;color:${c}">${z.id}</div>
+      <div style="display:flex;gap:5px;align-items:center;">
+        <span style="font-family:var(--mono);font-size:9px;color:var(--t2)">Survivors:</span>
+        <button class="dc-btn" style="padding:2px 6px" onclick="adjSurvivor('${z.id}','add')">+</button>
+        <span style="font-family:var(--mono);font-size:12px;font-weight:700;color:${c}" id="hc-${z.id}">${z.hc}</span>
+        <button class="dc-btn" style="padding:2px 6px" onclick="adjSurvivor('${z.id}','rescued')">Rescued</button>
+      </div>
+      <span class="pill ${zcl(z.sr)=='zr'?'pr2':zcl(z.sr)=='zy'?'py2':'pb2'}" style="font-size:8px;">${zlb(z.sr)}</span>
+    </div>`;
+  });
+}
+function adjSurvivor(zid,action){
+  const z=STATE.zones.find(z=>z.id===zid);if(!z)return;
+  if(action==='add')z.hc=Math.max(0,z.hc+1);
+  if(action==='rescued')z.hc=Math.max(0,z.hc-1);
+  fetch(`/api/zones/${zid}/survivor`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,operatorId:OPERATOR_ID})}).catch(()=>{});
+  const el=document.getElementById('hc-'+zid);if(el)el.textContent=z.hc;
+  renderAll();showToast(`${zid}: ${action} survivor → ${z.hc} total`,'ng');
+}
+function renderCmdErrList(){
+  const el=document.getElementById('cmd-err-list');if(!el)return;el.innerHTML='';
+  STATE.errorLog.filter(e=>!e.acknowledged).slice(0,5).forEach(e=>{
+    el.innerHTML+=`<div class="err-item ${e.severity}" style="margin-bottom:6px;">
+      <div class="err-top"><span class="err-sev ${e.severity}">${e.severity}</span><span class="err-source">${e.source}</span><span class="err-time">${fmtTime(e.timestamp)}</span></div>
+      <div class="err-msg">${e.message}</div>
+      <button class="err-ack-btn" onclick="ackError('${e.id}')">Ack</button>
+    </div>`;
+  });
+  if(!STATE.errorLog.filter(e=>!e.acknowledged).length)el.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--g);padding:8px 0">✓ All errors acknowledged</div>';
+}
+function renderCmdLog(){
+  const el=document.getElementById('cmdLogList');if(!el)return;el.innerHTML='';
+  STATE.commandLog.slice(0,15).forEach(c=>{
+    el.innerHTML+=`<div class="cmd-log-item"><div class="cmd-log-header"><span class="cmd-log-action">${c.action}</span><span class="cmd-log-target">${c.target}</span><span class="cmd-log-time">${fmtTime(c.timestamp)}</span></div><div class="cmd-log-op">by ${c.operatorId}</div></div>`;
+  });
+  if(!STATE.commandLog.length)el.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--t2);padding:4px 0">No commands issued yet</div>';
+}
+
+// ═══════════════════════════════════════════════════
+// ERROR LOG
+// ═══════════════════════════════════════════════════
+function updateErrBadge(){
+  const unacked=STATE.errorLog.filter(e=>!e.acknowledged).length;
+  const btn=document.getElementById('err-btn');const cnt=document.getElementById('errCount');
+  if(unacked>0){btn.classList.add('has-errors');cnt.style.display='grid';cnt.textContent=unacked;}
+  else{btn.classList.remove('has-errors');cnt.style.display='none';}
+}
+function openErrorModal(){document.getElementById('errorModal').classList.add('show');renderErrModal();}
+function closeErrorModal(){document.getElementById('errorModal').classList.remove('show');}
+function setErrFilter(f,btn){errFilter=f;document.querySelectorAll('.err-filter-btn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderErrModal();}
+function renderErrModal(){
+  const el=document.getElementById('errorModalList');el.innerHTML='';
+  let log=STATE.errorLog;
+  if(errFilter!=='ALL')log=log.filter(e=>e.severity===errFilter);
+  if(!log.length){el.innerHTML='<div style="font-family:var(--mono);font-size:12px;color:var(--t2);padding:12px">No errors matching filter</div>';return;}
+  log.slice(0,80).forEach(e=>{
+    el.innerHTML+=`<div class="err-item ${e.severity} ${e.acknowledged?'acked':''}">
+      <div class="err-top"><span class="err-sev ${e.severity}">${e.severity}</span><span class="err-source">${e.source}</span><span class="err-time">${fmtTime(e.timestamp)}</span></div>
+      <div class="err-msg">${e.message}</div>
+      ${!e.acknowledged?`<button class="err-ack-btn" onclick="ackError('${e.id}')">Acknowledge</button>`:'<span style="font-family:var(--mono);font-size:8px;color:var(--t2);position:absolute;bottom:8px;right:10px">acknowledged</span>'}
+    </div>`;
+  });
+}
+function ackError(id){sendWS('ACK_ERROR',{errorId:id});const e=STATE.errorLog.find(e=>e.id===id);if(e)e.acknowledged=true;updateErrBadge();renderErrModal();renderCmdErrList();}
+function ackAllErrors(){STATE.errorLog.forEach(e=>{if(!e.acknowledged){e.acknowledged=true;sendWS('ACK_ERROR',{errorId:e.id});}});updateErrBadge();renderErrModal();renderCmdErrList();}
+
+// ═══════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════
+let tT;
+function showToast(msg,cls){const t=document.getElementById('toast');t.textContent=msg;t.className=cls==='err'?'err':'';t.style.display='block';clearTimeout(tT);tT=setTimeout(()=>t.style.display='none',3800);}
+
+// ═══════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════
+// Try to connect to the real backend via HTTPS polling.
+// Falls back to standalone simulation automatically if unreachable.
+(function(){
+  connectWS();
+})();
+setTimeout(()=>{bSensBtns();},3500);
+</script>
+</body>
+</html>
