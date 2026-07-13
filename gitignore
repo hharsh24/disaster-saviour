@@ -1,0 +1,6 @@
+node_modules/
+.env
+prana.db
+prana.db-shm
+prana.db-wal
+npm-debug.log
