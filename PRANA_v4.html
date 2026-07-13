@@ -1065,7 +1065,14 @@ setInterval(()=>{if(document.getElementById('pgtd')&&document.getElementById('pg
 // ═══════════════════════════════════════════════════
 // WEBSOCKET CONNECTION
 // ═══════════════════════════════════════════════════
-const WS_URL = 'ws://localhost:3001'; // ← backend connected
+// Auto-detects the right backend address:
+// - If this file is opened from file:// or a different host (e.g. localhost:8080)
+//   while testing locally, it falls back to ws://localhost:3001.
+// - If this file is SERVED BY the same backend/host (e.g. your Render URL),
+//   it automatically uses that same host with wss:// (secure).
+const WS_URL = (location.protocol === 'file:' || !location.host)
+  ? 'ws://localhost:3001'
+  : `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`;
 const OPERATOR_ID = 'COMMANDER-' + Math.random().toString(36).slice(2,6).toUpperCase();
 let ws = null, wsReady = false;
 let STATE = { zones:[], teams:[], drones:[], resources:[], alerts:[], errorLog:[], commandLog:[], connectedClients:1 };
@@ -1098,21 +1105,6 @@ function connectWS(){
   }catch(e){ startSimulation(); }
 }
 
-function connectWS(){
-  const b=document.getElementById('conn-banner');b.className='connecting';
-  document.getElementById('conn-text').textContent='Connecting to PRANA backend...';
-  try{
-    ws=new WebSocket(WS_URL);
-    ws.onopen=()=>{
-      wsReady=true;b.className='connected';
-      document.getElementById('conn-text').textContent='Connected to PRANA backend — real-time data active';
-      document.getElementById('conn-detail').textContent=`Operator: ${OPERATOR_ID}`;
-    };
-    ws.onmessage=(e)=>{ try{handleMsg(JSON.parse(e.data));}catch(err){console.error(err);} };
-    ws.onclose=()=>{ wsReady=false;b.className='disconnected';document.getElementById('conn-text').textContent='Disconnected — retrying in 3s...';setTimeout(connectWS,3000); };
-    ws.onerror=()=>{ wsReady=false;b.className='disconnected';document.getElementById('conn-text').textContent='Connection error — using simulation mode'; };
-  }catch(e){ startSimulation(); }
-}
 function sendWS(type,payload={}){ if(ws&&wsReady)ws.send(JSON.stringify({type,payload:{...payload,operatorId:OPERATOR_ID}})); }
 
 function handleMsg(msg){
