@@ -20,8 +20,8 @@ import argparse
 import random
 import threading
 
-BACKEND_WS   = "ws://localhost:3001"
-BACKEND_REST = "http://localhost:3001/api/sensor"
+BACKEND_WS   = "wss://prana-the-decider.onrender.com"
+BACKEND_REST = "https://prana-the-decider.onrender.com/api/sensor"
 ZONE_ID      = "SECTOR-A1"
 
 # ─────────────────────────────────────────
