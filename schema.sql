@@ -53,3 +53,20 @@ CREATE TABLE IF NOT EXISTS sensor_history (
   recorded_at TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_sensor_history_zone_time ON sensor_history(zone_id, recorded_at DESC);
+
+-- Decision log: every time a recommendation was generated and/or an operator
+-- acted, we record both. This is NOT used by any live logic today — it exists
+-- so that if you ever want to train a real model later, you already have
+-- (recommendation, actual decision, eventual outcome) triples instead of
+-- starting from zero. See README section "From rules to a trained model".
+CREATE TABLE IF NOT EXISTS decision_log (
+  id                      TEXT PRIMARY KEY,
+  recommendation          JSONB,      -- ranked zones + scores at time of suggestion
+  rule_violations         JSONB,      -- what the rule checker flagged, if anything
+  action_taken            TEXT,       -- e.g. 'ASSIGN_TEAM', 'RECALL_TEAM', NULL if none yet
+  action_target           TEXT,       -- teamId/zoneId involved
+  followed_recommendation BOOLEAN,    -- did the operator's action match the #1 pick?
+  operator_id             TEXT,
+  created_at              TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_decision_log_time ON decision_log(created_at DESC);

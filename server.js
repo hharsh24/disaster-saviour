@@ -34,6 +34,7 @@ const path     = require('path');
 const fs       = require('fs');
 const { v4: uuid } = require('uuid');
 const { Pool } = require('pg');
+const { getRecommendations, checkStateRules, checkActionRules } = require('./decisionRules');
 
 // ─────────────────────────────────────
 //  DATABASE SETUP
@@ -216,6 +217,17 @@ async function logCmd(action, target, operatorId) {
   broadcastRaw({ type:'COMMAND_LOG', payload:{ id:e.id, action, target, operatorId:e.operator_id, timestamp:e.timestamp } });
 }
 
+async function logDecision({ recommendation, ruleViolations, actionTaken, actionTarget, followedRecommendation, operatorId }) {
+  const id = uuid();
+  await q(
+    `INSERT INTO decision_log(id,recommendation,rule_violations,action_taken,action_target,followed_recommendation,operator_id)
+     VALUES($1,$2,$3,$4,$5,$6,$7)`,
+    [id, JSON.stringify(recommendation || null), JSON.stringify(ruleViolations || []), actionTaken || null,
+     actionTarget || null, followedRecommendation ?? null, operatorId || 'SYSTEM']
+  );
+  return id;
+}
+
 // ─────────────────────────────────────
 //  VALIDATION HELPERS
 // ─────────────────────────────────────
@@ -309,14 +321,25 @@ const handlers = {
     console.log(`[ASSIGN] ${teamId} → ${zoneId}`);
   },
 
-  async RECALL_TEAM({teamId,operatorId}, ws) {
+  async RECALL_TEAM({teamId,operatorId,force}, ws) {
     const team = await qOne('SELECT * FROM teams WHERE id=$1', [teamId]);
     if (!team) return sendTo(ws,{type:'ERROR',payload:{message:`Team not found`}});
+
+    // Safety check: refuse to blindly pull a team off an uncovered critical zone.
+    const state = await loadState();
+    const violations = checkActionRules(state, { type: 'RECALL_TEAM', teamId });
+    const blocking = violations.filter(v => v.severity === 'BLOCK');
+    if (blocking.length && !force) {
+      await logDecision({ actionTaken: 'RECALL_TEAM_BLOCKED', actionTarget: teamId, operatorId, ruleViolations: blocking });
+      return sendTo(ws, { type: 'ERROR', payload: { message: blocking[0].message, violations: blocking } });
+    }
+
     if (team.assigned_zone) await q(`UPDATE zones SET assigned=NULL WHERE id=$1`, [team.assigned_zone]);
     await q(`UPDATE teams SET status='available', assigned_zone=NULL, updated_at=NOW() WHERE id=$1`, [teamId]);
     await broadcastState();
     await logCmd('RECALL_TEAM',teamId,operatorId);
-    console.log(`[RECALL] ${teamId}`);
+    await logDecision({ actionTaken: 'RECALL_TEAM', actionTarget: teamId, operatorId, ruleViolations: violations });
+    console.log(`[RECALL] ${teamId}${force && blocking.length ? ' (forced past warning)' : ''}`);
   },
 
   async UPDATE_RESOURCE({resourceId,deployed,operatorId}, ws) {
@@ -540,6 +563,92 @@ app.post('/api/action', async (req, res) => {
     res.json({ ok:true, message:'Action processed', data: captured });
   } catch (e) {
     res.status(500).json({ ok:false, message: e.message });
+  }
+});
+
+app.get('/api/recommendation', async (_,res) => {
+  try {
+    const state = await loadState();
+    const recommendations = getRecommendations(state);
+    const violations = checkStateRules(state);
+    await logDecision({ recommendation: recommendations, ruleViolations: violations });
+    res.json({
+      ok: true,
+      data: {
+        recommendations: recommendations.map(z => ({ zoneId: z.id, score: +z.score.toFixed(1), hc: z.hc, sr: z.sr, ts: z.ts })),
+        warnings: violations.filter(v => v.severity === 'WARN'),
+        blocks: violations.filter(v => v.severity === 'BLOCK'),
+      },
+    });
+  } catch (e) {
+    res.status(500).json({ ok:false, message: e.message });
+  }
+});
+
+// ─────────────────────────────────────
+//  AI ADVICE (natural-language, via Claude API — no training required)
+// ─────────────────────────────────────
+// This calls the real Anthropic API to turn the current state + rule-checker
+// output into a short, human-readable recommendation. It is a THIN LAYER on
+// top of decisionRules.js — the LLM explains and prioritizes in plain
+// English, it does not invent its own scoring logic, and it never takes
+// action directly (no tool calls to ASSIGN_TEAM etc.). A human still decides.
+async function generateAdvice(state, recommendations, violations) {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    throw new Error('ANTHROPIC_API_KEY is not set — see .env.example');
+  }
+
+  const context = {
+    topZones: recommendations.map(z => ({ zoneId: z.id, score: +z.score.toFixed(1), survivors: z.hc, survivalRate: z.sr, hoursSinceIncident: z.ts })),
+    availableTeams: state.teams.filter(t => t.status === 'available').map(t => t.id),
+    ruleWarnings: violations.filter(v => v.severity === 'WARN').map(v => v.message),
+    ruleBlocks: violations.filter(v => v.severity === 'BLOCK').map(v => v.message),
+    unacknowledgedCriticalAlerts: state.errorLog.filter(e => e.severity === 'CRITICAL' && !e.acknowledged).map(e => `${e.source}: ${e.message}`),
+  };
+
+  const systemPrompt =
+    'You are an advisory assistant for a disaster-response coordination dashboard. ' +
+    'You are given a ranked list of zones (from a deterministic priority formula, not your own judgment), ' +
+    'plus rule-checker warnings. Write a short (3-5 sentence) recommendation for the human operator: ' +
+    'which zone to prioritize and why, and call out any rule warnings that need attention. ' +
+    'Do not invent data not given to you. Do not claim certainty the data does not support. ' +
+    'You are giving advice, not issuing commands — the operator makes the final call.';
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 400,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: `Current situation:\n${JSON.stringify(context, null, 2)}` }],
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Anthropic API error (${response.status}): ${errText}`);
+  }
+
+  const data = await response.json();
+  const text = data.content.filter(b => b.type === 'text').map(b => b.text).join('\n');
+  return text;
+}
+
+app.get('/api/advice', async (_, res) => {
+  try {
+    const state = await loadState();
+    const recommendations = getRecommendations(state);
+    const violations = checkStateRules(state);
+    const advice = await generateAdvice(state, recommendations, violations);
+    await logDecision({ recommendation: recommendations, ruleViolations: violations, actionTaken: 'ADVICE_GENERATED' });
+    res.json({ ok: true, data: { advice, recommendations, warnings: violations.filter(v => v.severity === 'WARN') } });
+  } catch (e) {
+    res.status(500).json({ ok: false, message: e.message });
   }
 });
 

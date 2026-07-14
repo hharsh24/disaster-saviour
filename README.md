@@ -227,6 +227,57 @@ PRANA_v4.html           ← Frontend (open in browser)
 
 ---
 
+## Decision Support (rules + advice, no training required)
+
+Three new pieces were added to check and explain decisions without training
+any ML model:
+
+**`validate-priority.js`** — standalone scenario test for the priority
+formula (`pr()`). Run with `node validate-priority.js`. Add your own
+scenarios as you or domain experts think of edge cases; it tells you when
+the formula's ranking disagrees with what a human would expect.
+
+**`decisionRules.js`** — deterministic safety rules, e.g. "don't recall the
+only team from an uncovered critical zone" (this one actively BLOCKs the
+action unless you pass `force: true`), and softer WARN-level rules like
+flagging low drone battery or an unassigned critical zone with idle teams
+available. Wired into `RECALL_TEAM` and exposed via:
+```
+GET /api/recommendation
+```
+which returns the ranked zones plus any warnings/blocks.
+
+**`GET /api/advice`** — calls the Claude API (needs `ANTHROPIC_API_KEY` in
+`.env`) to turn the ranked zones + rule warnings into a short, plain-English
+recommendation for the operator. This is prompting, not training — the LLM
+explains and prioritizes based on data it's given, it doesn't invent its own
+scoring, and it never calls `ASSIGN_TEAM` etc. directly. If the key isn't
+set, this endpoint returns a clear error; everything else keeps working.
+
+### From rules to a trained model (only if you need it later)
+
+Every recommendation and every operator action now gets written to the
+`decision_log` table (see `schema.sql`) — even if nothing downstream reads
+it yet. That's intentional: it's the raw material you'd need if you ever
+want to move past hand-tuned rules to a model that's actually learned from
+outcomes. Concretely, before training anything you'd want:
+
+1. **Real outcome data**, not just decisions — did the recommended zone
+   actually have the best outcome? Right now `decision_log` captures
+   recommendation vs. action taken; you'd need to add an outcome field
+   (e.g. survivors recovered, time-to-rescue) once real incidents give you
+   that.
+2. **A clear label for "correct"** — pick one metric to optimize
+   (survivors saved, response time, etc.) so a model has something concrete
+   to learn against.
+3. **A baseline to beat** — the rule-based formula in `decisionRules.js` is
+   your baseline. Any trained model should be evaluated against it, not
+   against a vague "seems smarter" impression.
+4. **Human-in-the-loop rollout** — even a well-validated model should
+   suggest, not act, for a while, the same way `/api/advice` does now.
+
+---
+
 ## Deploying to a Real Server (production)
 
 ```bash
