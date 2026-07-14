@@ -128,6 +128,15 @@ async function seedIfEmpty() {
   await pushAlertRaw('CRITICAL','SECTOR-C3','9 survivors — team not yet assigned');
   await pushAlertRaw('HIGH',    'SECTOR-A1','CO₂ critical: 1620 ppm');
 
+  // BUGFIX: teams were never seeded on first boot — only zones/resources/drones
+  // were. That left the `teams` table empty until someone manually touched the
+  // "Rescue Teams" slider (the only thing that called rebuildTeams()), so
+  // ASSIGN_TEAM would fail with "Team X not found" even though the frontend
+  // showed teams as available (it has its own fallback list). Seed teams here
+  // to match the initial rescue_teams.deployed count above.
+  const initialMobilized = resources.find(r => r.id === 'rescue_teams')?.deployed ?? 2;
+  await rebuildTeams(initialMobilized);
+
   console.log('[DB] Seed complete');
 }
 
@@ -622,7 +631,7 @@ async function generateAdvice(state, recommendations, violations) {
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
+      model: 'claude-sonnet-5',
       max_tokens: 400,
       system: systemPrompt,
       messages: [{ role: 'user', content: `Current situation:\n${JSON.stringify(context, null, 2)}` }],
