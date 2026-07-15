@@ -9,16 +9,23 @@ CREATE TABLE IF NOT EXISTS zones (
   sr REAL DEFAULT 50,   ts REAL DEFAULT 0,
   assigned    TEXT,
   thermal REAL, sound REAL, vibration REAL, co2 REAL, motion REAL,
+  lat REAL, lng REAL,   -- real-world GPS coords, for distance-based team matching
   updated_at  TIMESTAMPTZ DEFAULT NOW()
 );
+-- Safe to re-run on an existing deployment that predates lat/lng:
+ALTER TABLE zones ADD COLUMN IF NOT EXISTS lat REAL;
+ALTER TABLE zones ADD COLUMN IF NOT EXISTS lng REAL;
 
 CREATE TABLE IF NOT EXISTS teams (
   id            TEXT PRIMARY KEY,
   name TEXT, role TEXT, members INTEGER, color TEXT,
   status        TEXT DEFAULT 'available',
   assigned_zone TEXT,
+  lat REAL, lng REAL,   -- team's current real-world GPS location
   updated_at    TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE teams ADD COLUMN IF NOT EXISTS lat REAL;
+ALTER TABLE teams ADD COLUMN IF NOT EXISTS lng REAL;
 
 CREATE TABLE IF NOT EXISTS drones (
   id TEXT PRIMARY KEY,

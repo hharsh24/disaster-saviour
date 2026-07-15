@@ -35,6 +35,8 @@ const fs       = require('fs');
 const { v4: uuid } = require('uuid');
 const { Pool } = require('pg');
 const { getRecommendations, checkStateRules, checkActionRules } = require('./decisionRules');
+const { planDeployment } = require('./deploymentPlanner');
+const { listRegions, getRegion } = require('./regions');
 
 // ─────────────────────────────────────
 //  DATABASE SETUP
@@ -63,6 +65,18 @@ async function qOne(text, params = []) {
 async function ensureSchema() {
   const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
   await pool.query(schema);
+}
+
+// ─── Helpers for POST /api/disaster/simulate ───
+function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function randFloat(min, max, dp = 1) { return +(Math.random() * (max - min) + min).toFixed(dp); }
+// Scatter a point up to `km` away from `center`, in a random direction.
+function jitter(center, km) {
+  const dist = Math.random() * km;
+  const angle = Math.random() * 2 * Math.PI;
+  const dLat = (dist * Math.cos(angle)) / 111; // ~111km per degree latitude
+  const dLng = (dist * Math.sin(angle)) / (111 * Math.cos((center.lat * Math.PI) / 180));
+  return { lat: +(center.lat + dLat).toFixed(4), lng: +(center.lng + dLng).toFixed(4) };
 }
 
 // ─────────────────────────────────────
@@ -570,6 +584,70 @@ app.post('/api/action', async (req, res) => {
       return res.status(400).json({ ok:false, message: captured.payload.message });
     }
     res.json({ ok:true, message:'Action processed', data: captured });
+  } catch (e) {
+    res.status(500).json({ ok:false, message: e.message });
+  }
+});
+
+app.get('/api/regions', (_, res) => {
+  res.json({ ok: true, data: { regions: listRegions() } });
+});
+
+app.post('/api/disaster/simulate', async (req, res) => {
+  try {
+    const { state, zoneCount = 5, teamCount = 4 } = req.body || {};
+    const center = getRegion(state);
+    if (!center) {
+      return res.status(400).json({
+        ok: false,
+        message: `Unknown state "${state}". See GET /api/regions for valid options.`,
+      });
+    }
+    const zc = Math.min(Math.max(parseInt(zoneCount, 10) || 5, 1), 12);
+    const tc = Math.min(Math.max(parseInt(teamCount, 10) || 4, 1), 10);
+    const code = state.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 10);
+
+    // Fresh scenario for this state — clear whatever was there before.
+    await q('DELETE FROM zones');
+    await q('DELETE FROM teams');
+
+    for (let i = 1; i <= zc; i++) {
+      const { lat, lng } = jitter(center, 80); // incidents scattered up to ~80km from city center
+      await q(
+        `INSERT INTO zones(id,type,hc,hp,sr,ts,lat,lng,thermal,sound,vibration,co2,motion)
+         VALUES($1,'incident',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+        [
+          `${code}-Z${i}`, randInt(1, 28), randInt(35, 98), randInt(10, 95), randFloat(0.2, 11),
+          lat, lng,
+          randFloat(33, 39), randInt(15, 85), randInt(5, 80), randInt(400, 1800), randFloat(0, 14),
+        ]
+      );
+    }
+
+    const TEAM_NAMES = ['ALPHA','BRAVO','CHARLIE','DELTA','ECHO','FOXTROT','GOLF','HOTEL','INDIA','JULIET'];
+    for (let j = 1; j <= tc; j++) {
+      const { lat, lng } = jitter(center, 30); // response teams based closer to the city
+      const name = TEAM_NAMES[j - 1] || `TEAM-${j}`;
+      await q(
+        `INSERT INTO teams(id,name,role,members,color,status,lat,lng)
+         VALUES($1,$2,'Search & Rescue',$3,'#4ade80','available',$4,$5)`,
+        [`${code}-${name}`, `Team ${name}`, randInt(3, 8), lat, lng]
+      );
+    }
+
+    await broadcastState();
+    res.json({ ok: true, data: { state, zonesCreated: zc, teamsCreated: tc } });
+  } catch (e) {
+    res.status(500).json({ ok: false, message: e.message });
+  }
+});
+
+app.get('/api/deployment-plan', async (_,res) => {
+  try {
+    const state = await loadState();
+    const plan = planDeployment(state);
+    await logDecision({ recommendation: plan, actionTaken: 'DEPLOYMENT_PLAN_GENERATED' });
+    res.json({ ok: true, data: { plan } });
   } catch (e) {
     res.status(500).json({ ok:false, message: e.message });
   }
