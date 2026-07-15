@@ -593,6 +593,38 @@ app.get('/api/regions', (_, res) => {
   res.json({ ok: true, data: { regions: listRegions() } });
 });
 
+const TEAM_NAMES = ['ALPHA','BRAVO','CHARLIE','DELTA','ECHO','FOXTROT','GOLF','HOTEL','INDIA','JULIET'];
+
+// Shared by both single-state and nationwide simulation. Does NOT clear
+// tables itself — caller decides when to wipe vs. accumulate across states.
+async function seedZonesAndTeamsForRegion(code, center, zc, tc) {
+  let zonesCreated = 0, teamsCreated = 0;
+  for (let i = 1; i <= zc; i++) {
+    const { lat, lng } = jitter(center, 80); // incidents scattered up to ~80km from city center
+    await q(
+      `INSERT INTO zones(id,type,hc,hp,sr,ts,lat,lng,thermal,sound,vibration,co2,motion)
+       VALUES($1,'incident',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+      [
+        `${code}-Z${i}`, randInt(1, 28), randInt(35, 98), randInt(10, 95), randFloat(0.2, 11),
+        lat, lng,
+        randFloat(33, 39), randInt(15, 85), randInt(5, 80), randInt(400, 1800), randFloat(0, 14),
+      ]
+    );
+    zonesCreated++;
+  }
+  for (let j = 1; j <= tc; j++) {
+    const { lat, lng } = jitter(center, 30); // response teams based closer to the city
+    const name = TEAM_NAMES[j - 1] || `TEAM-${j}`;
+    await q(
+      `INSERT INTO teams(id,name,role,members,color,status,lat,lng)
+       VALUES($1,$2,'Search & Rescue',$3,'#4ade80','available',$4,$5)`,
+      [`${code}-${name}`, `Team ${name}`, randInt(3, 8), lat, lng]
+    );
+    teamsCreated++;
+  }
+  return { zonesCreated, teamsCreated };
+}
+
 app.post('/api/disaster/simulate', async (req, res) => {
   try {
     const { state, zoneCount = 5, teamCount = 4 } = req.body || {};
@@ -611,32 +643,42 @@ app.post('/api/disaster/simulate', async (req, res) => {
     await q('DELETE FROM zones');
     await q('DELETE FROM teams');
 
-    for (let i = 1; i <= zc; i++) {
-      const { lat, lng } = jitter(center, 80); // incidents scattered up to ~80km from city center
-      await q(
-        `INSERT INTO zones(id,type,hc,hp,sr,ts,lat,lng,thermal,sound,vibration,co2,motion)
-         VALUES($1,'incident',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
-        [
-          `${code}-Z${i}`, randInt(1, 28), randInt(35, 98), randInt(10, 95), randFloat(0.2, 11),
-          lat, lng,
-          randFloat(33, 39), randInt(15, 85), randInt(5, 80), randInt(400, 1800), randFloat(0, 14),
-        ]
-      );
-    }
+    const { zonesCreated, teamsCreated } = await seedZonesAndTeamsForRegion(code, center, zc, tc);
+    await broadcastState();
+    res.json({ ok: true, data: { state, zonesCreated, teamsCreated } });
+  } catch (e) {
+    res.status(500).json({ ok: false, message: e.message });
+  }
+});
 
-    const TEAM_NAMES = ['ALPHA','BRAVO','CHARLIE','DELTA','ECHO','FOXTROT','GOLF','HOTEL','INDIA','JULIET'];
-    for (let j = 1; j <= tc; j++) {
-      const { lat, lng } = jitter(center, 30); // response teams based closer to the city
-      const name = TEAM_NAMES[j - 1] || `TEAM-${j}`;
-      await q(
-        `INSERT INTO teams(id,name,role,members,color,status,lat,lng)
-         VALUES($1,$2,'Search & Rescue',$3,'#4ade80','available',$4,$5)`,
-        [`${code}-${name}`, `Team ${name}`, randInt(3, 8), lat, lng]
-      );
+// Seeds 3-4 disaster sites (and a couple of response teams) in EVERY state
+// at once, instead of one state at a time. Same severity + distance-matching
+// logic in deploymentPlanner.js applies automatically — it just now has to
+// prioritize across the whole country instead of one region, which is a
+// more realistic (and more demo-worthy) picture of what the project does.
+app.post('/api/disaster/simulate-national', async (req, res) => {
+  try {
+    const { zonesPerState = 3, teamsPerState = 2 } = req.body || {};
+    const zc = Math.min(Math.max(parseInt(zonesPerState, 10) || 3, 1), 6);
+    const tc = Math.min(Math.max(parseInt(teamsPerState, 10) || 2, 1), 4);
+
+    await q('DELETE FROM zones');
+    await q('DELETE FROM teams');
+
+    const regions = listRegions();
+    let totalZones = 0, totalTeams = 0;
+    for (const region of regions) {
+      const code = region.name.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 8);
+      const { zonesCreated, teamsCreated } = await seedZonesAndTeamsForRegion(code, region, zc, tc);
+      totalZones += zonesCreated;
+      totalTeams += teamsCreated;
     }
 
     await broadcastState();
-    res.json({ ok: true, data: { state, zonesCreated: zc, teamsCreated: tc } });
+    res.json({
+      ok: true,
+      data: { statesCovered: regions.length, zonesCreated: totalZones, teamsCreated: totalTeams },
+    });
   } catch (e) {
     res.status(500).json({ ok: false, message: e.message });
   }

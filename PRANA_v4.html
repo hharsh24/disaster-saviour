@@ -850,6 +850,7 @@ canvas.spk{width:100%;height:28px;}
         <input id="imZoneCount" type="number" min="1" max="12" value="6" title="Zones to generate" style="width:64px" />
         <input id="imTeamCount" type="number" min="1" max="10" value="4" title="Teams to generate" style="width:64px" />
         <button onclick="imSimulate()">⚡ Simulate Disaster Here</button>
+        <button onclick="imSimulateNational()" style="background:var(--rd);border-color:rgba(240,62,92,.4);color:var(--r);">🌏 Simulate Nationwide (All States)</button>
         <span id="imStatus" style="font-family:var(--mono);font-size:11px;color:var(--t2);"></span>
       </div>
       <div id="imMap"></div>
@@ -2020,6 +2021,35 @@ async function imLoadStates(){
   }
 }
 
+async function imSimulateNational(){
+  if(!confirm('This replaces the current scenario with 3-4 disaster sites in every state across India (~23 states). Continue?'))return;
+  document.getElementById('imStatus').textContent='Simulating nationwide… this covers 23 states, may take a few seconds.';
+  try{
+    const r=await fetch(`${API_BASE}/api/disaster/simulate-national`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({zonesPerState:3,teamsPerState:2})
+    });
+    const j=await r.json();
+    if(!j.ok){showToast('⚠ '+j.message,'err');document.getElementById('imStatus').textContent='';return;}
+    document.getElementById('imStatus').textContent=`✓ ${j.data.zonesCreated} zones across ${j.data.statesCovered} states, ${j.data.teamsCreated} teams`;
+    await pollState();
+    imRenderMarkersFromState();
+    await imLoadPlan();
+    imFitToMarkers();
+  }catch(e){
+    showToast('⚠ Nationwide simulation failed — backend unreachable','err');
+    document.getElementById('imStatus').textContent='';
+  }
+}
+
+function imFitToMarkers(){
+  if(!imMapInstance)return;
+  const pts=[];
+  (STATE.zones||[]).forEach(z=>{if(z.lat!=null&&z.lng!=null)pts.push([z.lat,z.lng]);});
+  (STATE.teams||[]).forEach(t=>{if(t.lat!=null&&t.lng!=null)pts.push([t.lat,t.lng]);});
+  if(pts.length>1)imMapInstance.fitBounds(pts,{padding:[30,30]});
+}
+
 async function imSimulate(){
   const state=document.getElementById('imStateSelect').value;
   if(!state){showToast('⚠ Select a state first','err');return;}
@@ -2037,21 +2067,12 @@ async function imSimulate(){
     await pollState();          // refresh STATE with the new zones/teams
     imRenderMarkersFromState(); // redraw markers
     await imLoadPlan();         // fetch fresh severity + nearest-team plan
-    if(state && REGION_CENTERS[state]) imMapInstance.setView([REGION_CENTERS[state].lat,REGION_CENTERS[state].lng],8);
+    imFitToMarkers();
   }catch(e){
     showToast('⚠ Simulation failed — backend unreachable','err');
     document.getElementById('imStatus').textContent='';
   }
 }
-
-let REGION_CENTERS={};
-(async function imCacheRegionCenters(){
-  try{
-    const r=await fetch(`${API_BASE}/api/regions`);
-    const j=await r.json();
-    if(j.ok) j.data.regions.forEach(s=>REGION_CENTERS[s.name]={lat:s.lat,lng:s.lng});
-  }catch(e){/* silently ignore — map still works without auto-zoom */}
-})();
 
 function imSevColor(hc,hp,ts){
   const sev=hc*(hp/100)*Math.exp(-0.048*ts);
@@ -2090,11 +2111,13 @@ async function imLoadPlan(){
     if(!j.ok) throw new Error(j.message);
     const plan=j.data.plan;
     if(!plan.length){list.innerHTML='No active zones needing assignment right now.';return;}
-    list.innerHTML=plan.map((p,i)=>`
+    const SHOW_LIMIT=20;
+    const shown=plan.slice(0,SHOW_LIMIT);
+    list.innerHTML=shown.map((p,i)=>`
       <div class="im-plan-row">
         <div><span class="im-plan-rank">#${i+1}</span> ${p.zoneId} — ${p.survivors} survivor(s), severity ${p.severity}</div>
         <div class="im-plan-meta">${p.suggestedTeamId?`→ ${p.suggestedTeamId}${p.distanceKm!=null?' ('+p.distanceKm+'km)':''}`:'⚠ no team available'}</div>
-      </div>`).join('');
+      </div>`).join('') + (plan.length>SHOW_LIMIT?`<div style="text-align:center;color:var(--t2);padding:8px;">+ ${plan.length-SHOW_LIMIT} more zones ranked below (${plan.filter(p=>!p.suggestedTeamId).length} total with no team available)</div>`:'');
 
     // Draw lines from suggested team to its zone, so the assignment is visible on the map
     plan.forEach(p=>{
