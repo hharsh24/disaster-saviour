@@ -151,6 +151,23 @@ def update_zone_status(zone_id: int, db: Session = Depends(get_db), current_user
     db.commit()
     return {"message": "Zone marked as rescued"}
 
+@app.get("/api/active-sessions")
+def get_active_sessions(db: Session = Depends(get_db), current_user: models_db.User = Depends(get_current_user)):
+    """Return list of users who are currently logged in (active sessions)"""
+    active_sessions = db.query(models_db.LoginSession).filter(
+        models_db.LoginSession.is_active == True
+    ).order_by(models_db.LoginSession.login_time.desc()).all()
+
+    return {
+        "active_sessions": [
+            {
+                "username": s.username,
+                "login_time": s.login_time.isoformat() if s.login_time else None
+            }
+            for s in active_sessions
+        ]
+    }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

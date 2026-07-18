@@ -35,11 +35,25 @@ def get_current_user(request: Request, db: Session = Depends(get_db)):
 
 @auth_router.post("/api/login")
 def login(login_data: LoginRequest, request: Request, db: Session = Depends(get_db)):
+    import datetime
     user = db.query(models_db.User).filter(models_db.User.username == login_data.username).first()
     if not user or not verify_password(login_data.password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Incorrect username or password")
     
     request.session["user"] = user.username
+
+    # Record login session in DB
+    session_entry = models_db.LoginSession(
+        username=user.username,
+        login_time=datetime.datetime.utcnow(),
+        is_active=True
+    )
+    db.add(session_entry)
+    db.commit()
+    db.refresh(session_entry)
+    # Store session DB id so logout can deactivate it
+    request.session["session_db_id"] = session_entry.id
+
     return {"message": "Login successful"}
 
 @auth_router.post("/api/signup")
@@ -55,7 +69,16 @@ def signup(login_data: LoginRequest, db: Session = Depends(get_db)):
     return {"message": "User created successfully. You can now login."}
 
 @auth_router.post("/api/logout")
-def logout(request: Request):
+def logout(request: Request, db: Session = Depends(get_db)):
+    session_db_id = request.session.get("session_db_id")
+    if session_db_id:
+        # Mark this session as inactive in DB
+        session_entry = db.query(models_db.LoginSession).filter(
+            models_db.LoginSession.id == session_db_id
+        ).first()
+        if session_entry:
+            session_entry.is_active = False
+            db.commit()
     request.session.clear()
     return {"message": "Logged out"}
 

@@ -28,3 +28,11 @@ class Zone(Base):
     # Status
     status = Column(String, default="pending")
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+
+class LoginSession(Base):
+    __tablename__ = "login_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, index=True)
+    login_time = Column(DateTime, default=datetime.datetime.utcnow)
+    is_active = Column(Boolean, default=True)
