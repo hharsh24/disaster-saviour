@@ -53,32 +53,44 @@ function updateDashboard(zones) {
     }
 
     zones.forEach(zone => {
+        // Calculate AI Decision based on XGBoost score
+        let aiDecision = "Low Priority";
+        let decisionColor = "var(--success)";
+        if (zone.priority_score >= 0.7) {
+            aiDecision = "CRITICAL - IMMEDIATE DISPATCH";
+            decisionColor = "var(--danger)";
+        } else if (zone.priority_score >= 0.4) {
+            aiDecision = "MODERATE - STANDBY";
+            decisionColor = "#f59e0b"; // Warning amber
+        }
+
         // Render List Item
         const card = document.createElement('div');
         card.className = 'zone-card';
         card.innerHTML = `
             <div class="zone-card-header">
-                <span class="zone-type">${zone.disaster_type}</span>
-                <span class="zone-score">Score: ${zone.priority_score.toFixed(3)}</span>
+                <span class="zone-type">${zone.severity_label}</span>
+                <span class="zone-score" title="XGBoost Priority Score">AI Score: ${(zone.priority_score * 100).toFixed(1)}%</span>
             </div>
             <div class="zone-details">
+                <strong style="color: ${decisionColor}; display: block; margin-bottom: 0.5rem; font-size: 1rem;">&#9889; AI Action: ${aiDecision}</strong>
                 Victims identified: ${zone.victim_count}<br>
-                Location: ${zone.lat.toFixed(4)}, ${zone.lng.toFixed(4)}
+                Location: ${zone.lat.toFixed(4)}, ${zone.long.toFixed(4)}
             </div>
-            <button class="btn-outline" onclick="markDone(${zone.id})">Mark Done</button>
+            <button class="btn-outline" onclick="markDone(${zone.id})" style="margin-top: 0.5rem;">Mark as Rescued</button>
         `;
         listEl.appendChild(card);
 
         // Render Map Marker
         if (!markers[zone.id]) {
-            const marker = L.circleMarker([zone.lat, zone.lng], {
-                color: zone.priority_score > 0.7 ? '#ef4444' : '#f59e0b',
+            const marker = L.circleMarker([zone.lat, zone.long], {
+                color: zone.priority_score > 0.7 ? '#ef4444' : (zone.priority_score > 0.4 ? '#f59e0b' : '#22c55e'),
                 radius: 8,
                 fillOpacity: 0.8
             }).addTo(map);
             
             marker.bindPopup(`
-                <b>${zone.disaster_type.toUpperCase()}</b><br>
+                <b>${zone.severity_label.toUpperCase()}</b><br>
                 Victims: ${zone.victim_count}<br>
                 Score: ${zone.priority_score.toFixed(3)}
             `);
@@ -86,7 +98,7 @@ function updateDashboard(zones) {
             
             // Pan to newest high priority
             if (zone.priority_score > 0.8) {
-                map.flyTo([zone.lat, zone.lng], 13);
+                map.flyTo([zone.lat, zone.long], 13);
             }
         }
     });

@@ -1,18 +1,23 @@
 from fastapi import FastAPI, Request, Depends, HTTPException, UploadFile, File, Form, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
+from starlette.middleware.sessions import SessionMiddleware
 import os
 
 from database import engine, get_db
 import models_db
-from auth import auth_router, get_current_user, sessions, get_password_hash
+from auth import auth_router, get_current_user, get_password_hash
 from ml.inference import run_inference, load_models
 
 # Create DB tables
 models_db.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Disaster Response App")
+
+# Add SessionMiddleware (Required by Prompt 6)
+app.add_middleware(SessionMiddleware, secret_key="super-secret-hackathon-key")
 
 # Include Auth Router
 app.include_router(auth_router)
@@ -41,24 +46,35 @@ def read_root(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
 @app.get("/dashboard")
-def get_dashboard(request: Request, current_user: models_db.User = Depends(get_current_user)):
-    """Serve the dashboard page, protected by session"""
-    return templates.TemplateResponse("dashboard.html", {"request": request, "user": current_user.username})
+def get_dashboard(request: Request):
+    """Serve the dashboard page. Redirect if not logged in."""
+    if not request.session.get("user"):
+        return RedirectResponse(url="/")
+    return templates.TemplateResponse("dashboard.html", {"request": request, "user": request.session.get("user")})
 
 @app.get("/upload")
 def get_upload_page(request: Request):
-    """Serve the upload page. In a real app this might be an endpoint drones hit, 
-    but we provide a UI to manually upload images for the demo."""
+    """Serve the upload page. Redirect if not logged in."""
+    if not request.session.get("user"):
+        return RedirectResponse(url="/")
     return templates.TemplateResponse("upload.html", {"request": request})
 
 # --- API ENDPOINTS ---
 
+@app.get("/health")
+def health_check():
+    """Simple health check endpoint"""
+    return {"status": "ok"}
+
+from ml.exif_utils import extract_gps_from_bytes
+
 @app.post("/api/detect")
 async def detect_zone(
-    lat: float = Form(...),
-    lng: float = Form(...),
+    lat: float = Form(None),
+    long: float = Form(None),
     file: UploadFile = File(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models_db.User = Depends(get_current_user)
 ):
     """
     Upload page (image + picked location) -> POST /detect 
@@ -67,17 +83,31 @@ async def detect_zone(
     """
     image_bytes = await file.read() if file else b""
     
+    # Extract GPS from EXIF
+    exif_lat, exif_long = extract_gps_from_bytes(image_bytes)
+    
+    # Use EXIF if available, otherwise fallback to form data
+    final_lat = exif_lat if exif_lat is not None else lat
+    final_long = exif_long if exif_long is not None else long
+    
+    if final_lat is None or final_long is None:
+        # Fallback to a random location for demo purposes (near Delhi)
+        import random
+        final_lat = 28.6139 + random.uniform(-0.1, 0.1)
+        final_long = 77.2090 + random.uniform(-0.1, 0.1)
+    
     # Run ML Inference
     inference_results = run_inference(image_bytes)
     
     # Create Zone Record
     new_zone = models_db.Zone(
-        lat=lat,
-        lng=lng,
+        lat=final_lat,
+        long=final_long,
         victim_count=inference_results["victim_count"],
-        disaster_type=inference_results["disaster_type"],
+        severity_label=inference_results["severity_label"],
+        severity_score=inference_results["severity_score"],
         priority_score=inference_results["priority_score"],
-        is_done=False
+        status="pending"
     )
     
     db.add(new_zone)
@@ -87,31 +117,39 @@ async def detect_zone(
     return {"message": "Detection processed", "zone_id": new_zone.id, "results": inference_results}
 
 @app.get("/api/zones")
-def get_zones(db: Session = Depends(get_db)):
+def get_zones(db: Session = Depends(get_db), current_user: models_db.User = Depends(get_current_user)):
     """dashboard page polls GET /zones every few seconds"""
-    zones = db.query(models_db.Zone).filter(models_db.Zone.is_done == False).order_by(models_db.Zone.priority_score.desc()).all()
-    return {"zones": [
-        {
+    active_zones = db.query(models_db.Zone).filter(models_db.Zone.status != "rescued").order_by(models_db.Zone.priority_score.desc()).all()
+    rescued_zones = db.query(models_db.Zone).filter(models_db.Zone.status == "rescued").order_by(models_db.Zone.id.desc()).all()
+    
+    def format_zone(z):
+        return {
             "id": z.id,
             "lat": z.lat,
-            "lng": z.lng,
+            "long": z.long,
             "victim_count": z.victim_count,
-            "disaster_type": z.disaster_type,
+            "severity_label": z.severity_label,
+            "severity_score": z.severity_score,
             "priority_score": z.priority_score,
-            "is_done": z.is_done
-        } for z in zones
-    ]}
+            "status": z.status,
+            "timestamp": z.timestamp.isoformat() if z.timestamp else None
+        }
+
+    return {
+        "active_zones": [format_zone(z) for z in active_zones],
+        "rescued_zones": [format_zone(z) for z in rescued_zones]
+    }
 
 @app.patch("/api/zone/{zone_id}")
-def update_zone_status(zone_id: int, db: Session = Depends(get_db)):
-    """Mark done button -> PATCH /zone/{id} -> status updated in SQLite"""
+def update_zone_status(zone_id: int, db: Session = Depends(get_db), current_user: models_db.User = Depends(get_current_user)):
+    """Mark rescued button -> PATCH /zone/{id} -> status updated in SQLite"""
     zone = db.query(models_db.Zone).filter(models_db.Zone.id == zone_id).first()
     if not zone:
         raise HTTPException(status_code=404, detail="Zone not found")
     
-    zone.is_done = True
+    zone.status = "rescued"
     db.commit()
-    return {"message": "Zone marked as done"}
+    return {"message": "Zone marked as rescued"}
 
 if __name__ == "__main__":
     import uvicorn

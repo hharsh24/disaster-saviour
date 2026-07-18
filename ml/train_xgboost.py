@@ -1,36 +1,47 @@
-import json
 import os
 import random
+import numpy as np
+import xgboost as xgb
 
-def train_mock_xgboost():
+def train_xgboost_model():
     """
-    This script is meant to be run once offline to train the model.
-    Since we are mocking the implementation for now, this just generates a dummy model file.
-    In a real scenario, this would use xgboost.train() and save the booster.
+    Generate synthetic training rows with features victim_count and severity_score, 
+    target priority = 0.6*victim_count + 0.4*severity_score + noise.
+    Train an XGBoost regressor and save it.
     """
-    model_path = os.path.join(os.path.dirname(__file__), "../models/xgboost_priority.json")
+    print("Generating synthetic data...")
+    num_samples = 1000
     
-    # Ensure directory exists
+    # Generate features: victim_count (0-10) and severity_score (0, 1, 2)
+    X = np.zeros((num_samples, 2))
+    y = np.zeros(num_samples)
+    
+    for i in range(num_samples):
+        victim_count = random.randint(0, 10)
+        severity_score = random.randint(0, 2)
+        
+        noise = random.uniform(-0.1, 0.1)
+        priority = (0.6 * victim_count) + (0.4 * severity_score) + noise
+        
+        X[i, 0] = victim_count
+        X[i, 1] = severity_score
+        y[i] = priority
+
+    print("Training XGBoost Regressor (Native API)...")
+    dtrain = xgb.DMatrix(X, label=y)
+    params = {
+        'max_depth': 3,
+        'eta': 0.1,
+        'objective': 'reg:squarederror'
+    }
+    model = xgb.train(params, dtrain, num_boost_round=100)
+    
+    model_path = os.path.join(os.path.dirname(__file__), "../models/xgboost_priority.json")
     os.makedirs(os.path.dirname(model_path), exist_ok=True)
     
-    dummy_model_data = {
-        "model_type": "xgboost",
-        "version": "1.0",
-        "features": ["victim_count", "disaster_severity"],
-        "trained_on": "synthetic_labels"
-    }
-    
-    with open(model_path, "w") as f:
-        json.dump(dummy_model_data, f, indent=4)
-        
-    print(f"Mock XGBoost model trained and saved to {model_path}")
-    
-    # Also create dummy .pt files
-    for m in ["victim_model.pt", "disaster_model.pt"]:
-        pt_path = os.path.join(os.path.dirname(__file__), f"../models/{m}")
-        with open(pt_path, "w") as f:
-            f.write("MOCK_PYTORCH_WEIGHTS")
-        print(f"Mock PyTorch model saved to {pt_path}")
+    model.save_model(model_path)
+    print(f"XGBoost model trained and saved to {model_path}")
 
 if __name__ == "__main__":
-    train_mock_xgboost()
+    train_xgboost_model()
+
