@@ -1,0 +1,9 @@
+{
+    "model_type": "xgboost",
+    "version": "1.0",
+    "features": [
+        "victim_count",
+        "disaster_severity"
+    ],
+    "trained_on": "synthetic_labels"
+}

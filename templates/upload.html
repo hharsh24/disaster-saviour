@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drone Upload Simulator</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+</head>
+<body>
+    <header>
+        <div class="logo">Drone Upload Sim</div>
+        <div class="user-info">
+            <a href="/dashboard" style="color: var(--accent);">Back to Dashboard</a>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="upload-layout">
+            <div class="form-container">
+                <h2>Upload Intelligence</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 2rem;">Simulate drone transmission. Pick a location on the map and upload a sample image.</p>
+                
+                <form id="upload-form">
+                    <div class="form-group">
+                        <label>Selected Latitude</label>
+                        <input type="text" id="lat" name="lat" readonly required placeholder="Click map to select...">
+                    </div>
+                    <div class="form-group">
+                        <label>Selected Longitude</label>
+                        <input type="text" id="lng" name="lng" readonly required placeholder="Click map to select...">
+                    </div>
+                    
+                    <div class="form-group" style="margin-top: 1.5rem;">
+                        <label>Intelligence Image</label>
+                        <input type="file" name="file" accept="image/png, image/jpeg">
+                    </div>
+                    
+                    <button type="submit" style="margin-top: 1rem;">Process Image & Dispatch</button>
+                    <div id="result-message" style="margin-top: 1rem; font-weight: 600;"></div>
+                </form>
+            </div>
+            
+            <div>
+                <h3 style="margin-top: 0;">Select Location</h3>
+                <div id="picker-map" class="picker-map"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/upload.js"></script>
+</body>
+</html>

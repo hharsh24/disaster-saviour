@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Live Intel</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+</head>
+<body>
+    <header>
+        <div class="logo">AI Intel Dashboard</div>
+        <div class="user-info">
+            <span>Operator: <strong>{{ user }}</strong></span>
+            <a href="/upload" style="color: var(--accent); margin-right: 1rem;">Drone Upload Sim</a>
+            <button class="btn-outline" onclick="logout()" style="padding: 0.5rem 1rem; width: auto;">Logout</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="dashboard-grid">
+            <div class="map-container">
+                <div id="map"></div>
+            </div>
+            
+            <div class="list-container">
+                <div class="list-header">
+                    <h3>Active Zones</h3>
+                    <span style="font-size: 0.8rem; color: var(--accent);">Live updating...</span>
+                </div>
+                <div class="zones-list" id="zones-list">
+                    <!-- Zones injected here via JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/dashboard.js"></script>
+</body>
+</html>
