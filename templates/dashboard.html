@@ -5,17 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Live Intel</title>
     <link rel="stylesheet" href="/static/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 </head>
 <body>
     <header>
-        <div class="logo">AI Intel Dashboard</div>
+        <div class="logo"><i class="ph-fill ph-radar"></i> AI Intel Dashboard</div>
         <div class="user-info">
-            <span>Operator: <strong>{{ user }}</strong></span>
-            <a href="/upload" style="color: var(--accent); margin-right: 1rem;">Drone Upload Sim</a>
-            <button class="btn-outline" onclick="logout()" style="padding: 0.5rem 1rem; width: auto;">Logout</button>
+            <span><i class="ph-fill ph-user-circle"></i> Operator: <strong style="color: #fff;">{{ user }}</strong></span>
+            <a href="/upload"><i class="ph-bold ph-airplane-tilt"></i> Drone Sim</a>
+            <button class="btn-outline" onclick="logout()" style="padding: 0.6rem 1.2rem; width: auto; font-size: 0.9rem;"><i class="ph-bold ph-sign-out"></i> Disconnect</button>
         </div>
     </header>
 
@@ -26,25 +26,37 @@
             </div>
             
             <div class="list-container">
-                <div class="list-header" style="flex-direction: column; align-items: stretch; gap: 1rem;">
+                <div class="list-header" style="flex-direction: column; align-items: stretch; gap: 1.25rem;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <h3>Active Zones</h3>
-                        <div class="status-pulse">Live updating...</div>
+                        <h3><i class="ph-fill ph-warning-circle" style="color: var(--warning);"></i> Active Zones</h3>
+                        <div class="status-pulse">Tracking...</div>
                     </div>
-                    <div class="metrics-bar" style="display: flex; gap: 1rem; font-size: 0.9rem;">
-                        <div class="metric"><span id="active-count" style="font-weight: 700; color: var(--accent);">0</span> Active</div>
-                        <div class="metric"><span id="rescued-count" style="font-weight: 700; color: var(--success);">0</span> Rescued</div>
+                    <div class="metrics-bar" style="display: flex; gap: 1rem;">
+                        <div class="metric-card">
+                            <i class="ph-fill ph-map-pin" style="color: var(--accent); font-size: 1.5rem;"></i>
+                            <div style="display: flex; flex-direction: column;">
+                                <span class="metric-value" id="active-count" style="color: var(--accent);">0</span>
+                                <span style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Active</span>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <i class="ph-fill ph-check-circle" style="color: var(--success); font-size: 1.5rem;"></i>
+                            <div style="display: flex; flex-direction: column;">
+                                <span class="metric-value" id="rescued-count" style="color: var(--success);">0</span>
+                                <span style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Rescued</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="zones-list" id="zones-list">
                     <!-- Zones injected here via JS -->
                 </div>
                 
-                <div class="list-header" style="border-top: 1px solid var(--card-border); margin-top: auto; padding-top: 1rem; padding-bottom: 0.5rem;">
-                    <h3>Mission Log</h3>
+                <div class="list-header" style="border-top: 1px solid var(--card-border); margin-top: auto; padding-top: 1.25rem; padding-bottom: 0.75rem;">
+                    <h3><i class="ph-fill ph-clipboard-text"></i> Mission Log</h3>
                     <span style="font-size: 0.8rem; color: var(--text-secondary);">Completed Rescues</span>
                 </div>
-                <div class="zones-list rescued-list" id="rescued-list" style="max-height: 200px; flex: none;">
+                <div class="zones-list rescued-list" id="rescued-list" style="max-height: 250px; flex: none;">
                     <!-- Rescued Zones injected here via JS -->
                 </div>
             </div>

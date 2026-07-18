@@ -3,30 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Disaster Response - Login</title>
+    <title>Disaster Saviour - System Login</title>
     <link rel="stylesheet" href="/static/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
 </head>
 <body>
     <div class="login-container">
         <div class="login-card">
-            <h2>Disaster Response System</h2>
+            <h2><i class="ph-fill ph-shield-check" style="color: var(--accent); margin-right: 0.5rem; vertical-align: middle;"></i>Disaster Saviour</h2>
             <form id="login-form">
                 <div class="form-group">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" required>
+                    <label for="username"><i class="ph ph-user"></i> Operator ID</label>
+                    <input type="text" id="username" placeholder="Enter your ID" required>
                 </div>
                 <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" required>
+                    <label for="password"><i class="ph ph-lock-key"></i> Passcode</label>
+                    <input type="password" id="password" placeholder="Enter your passcode" required>
                 </div>
-                <button type="submit" id="login-btn">Login</button>
-                <button type="button" id="signup-btn" class="btn-outline" style="margin-top: 10px;">Sign Up</button>
+                <button type="submit" id="login-btn"><i class="ph-bold ph-sign-in"></i> Authenticate</button>
+                <button type="button" id="signup-btn" class="btn-outline" style="margin-top: 15px;"><i class="ph-bold ph-user-plus"></i> Request Access</button>
                 <div id="error-message" class="error-message"></div>
-                <div id="success-message" style="color: var(--success); margin-top: 1rem; text-align: center; font-size: 0.875rem;"></div>
+                <div id="success-message" style="color: var(--success); margin-top: 1.2rem; text-align: center; font-size: 0.9rem; font-weight: 600;"></div>
             </form>
-            <div style="margin-top: 1rem; text-align: center; color: var(--text-secondary); font-size: 0.8rem;">
-                Default credentials: admin / admin
+            <div style="margin-top: 1.5rem; text-align: center; color: var(--text-secondary); font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 0.4rem;">
+                <i class="ph-fill ph-info"></i> Default credentials: admin / admin
             </div>
         </div>
     </div>

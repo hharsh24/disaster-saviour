@@ -5,30 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Drone Upload Simulator</title>
     <link rel="stylesheet" href="/static/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
 </head>
 <body>
     <header>
-        <div class="logo">Drone Upload Sim</div>
+        <div class="logo"><i class="ph-fill ph-airplane-tilt"></i> Drone Upload Sim</div>
         <div class="user-info">
-            <a href="/dashboard" style="color: var(--accent);">Back to Dashboard</a>
+            <a href="/dashboard"><i class="ph-bold ph-arrow-left"></i> Back to HQ</a>
         </div>
     </header>
 
     <div class="container">
         <div class="upload-layout">
             <div class="form-container">
-                <h2>Upload Intelligence</h2>
-                <p style="color: var(--text-secondary); margin-bottom: 2rem;">Simulate drone transmission. Location will be extracted automatically from image metadata.</p>
+                <h2><i class="ph-fill ph-upload-simple" style="color: var(--accent);"></i> Transmit Intel</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 2.5rem; line-height: 1.6;">Simulate drone transmission. Location coordinates will be extracted automatically from the image metadata before dispatching to the AI inference engine.</p>
                 
                 <form id="upload-form">
                     <div class="form-group" style="margin-top: 1.5rem;">
-                        <label>Intelligence Image</label>
+                        <label><i class="ph-fill ph-image"></i> Intelligence Image</label>
                         <input type="file" name="file" accept="image/png, image/jpeg" required>
                     </div>
                     
-                    <button type="submit" style="margin-top: 1rem;">Process Image & Dispatch</button>
-                    <div id="result-message" style="margin-top: 1rem; font-weight: 600;"></div>
+                    <button type="submit" style="margin-top: 2rem;"><i class="ph-bold ph-paper-plane-tilt"></i> Process Image & Dispatch</button>
+                    <div id="result-message" style="margin-top: 1.5rem; font-weight: 600;"></div>
                 </form>
             </div>
         </div>
