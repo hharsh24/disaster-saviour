@@ -1,31 +1,81 @@
-# Disaster Response App (Locked-in Architecture)
+# 🚨 Disaster Saviour — AI Drone Disaster Response App
 
-A single-server, offline-first disaster response coordination dashboard designed for a bulletproof hackathon demo.
+A single-server, offline-first disaster response coordination dashboard built for hackathon demo.
 
-## Features
-- **FastAPI Backend:** Handles API routing and serves the static HTML/CSS/JS frontend without CORS issues.
-- **SQLite Database:** Zero-setup, file-based database.
-- **Session Auth:** Cookie-based login so you don't rely on external services.
-- **YOLO & XGBoost Integration:** AI models process uploaded drone images, while an XGBoost ranking algorithm assigns priority scores to zones.
-- **Live Updating Dashboard:** Leaflet maps and lists poll the backend automatically.
+## ✨ Features
+- **FastAPI Backend** — Handles API routing and serves the frontend
+- **SQLite Database** — Zero-setup, file-based, no internet needed
+- **Session Auth** — Cookie-based login, works fully offline
+- **YOLO & XGBoost AI** — Processes drone images, detects victims & disaster severity
+- **Live Dashboard** — Leaflet map + zone list auto-updates every few seconds
+- **🟢 Active Operators Panel** — Shows who is logged in live, refreshes every 5 seconds
 
-## Quickstart
+## 📁 Project Structure
 
-1. **Install Dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+```
+disaster-saviour/
+├── main.py                  ← FastAPI app (routes + API)
+├── auth.py                  ← Login / logout / session tracking
+├── database.py              ← SQLAlchemy SQLite setup
+├── models_db.py             ← DB models: User, Zone, LoginSession
+├── ml/
+│   ├── inference.py         ← YOLO + XGBoost inference
+│   └── train_xgboost.py     ← Run once to train priority model
+├── models/
+│   ├── victim_model.pt      ← ⚠️ Add your trained YOLO best.pt here
+│   ├── disaster_model.pt    ← ⚠️ Add your trained YOLO best.pt here
+│   └── xgboost_priority.json
+├── templates/               ← HTML pages (login, dashboard, upload)
+└── static/                  ← CSS + JS files
+```
 
-2. **Generate the Mock XGBoost Model (Run Once)**
-   ```bash
-   python ml/train_xgboost.py
-   ```
+## 🚀 Quickstart
 
-3. **Start the Server**
-   ```bash
-   uvicorn main:app --reload
-   ```
+### 1. Install Dependencies
+```bash
+pip install -r requirements.txt
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+```
 
-4. **Open the App**
-   Navigate to [http://localhost:8000](http://localhost:8000) in your browser.
-   Login with default credentials: `admin` / `admin`
+### 2. Add Your Trained Models
+Copy your YOLO `best.pt` files into the `models/` folder:
+```
+models/victim_model.pt      ← rename your victim detection best.pt
+models/disaster_model.pt    ← rename your disaster detection best.pt
+```
+
+### 3. Train XGBoost Priority Model (Run Once)
+```bash
+python ml/train_xgboost.py
+```
+
+### 4. Start the Server
+```bash
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### 5. Open the App
+```
+http://localhost:8000
+```
+Login with default credentials: `admin` / `admin`
+
+## 📌 Key Pages
+
+| Page | URL |
+|---|---|
+| Login | http://localhost:8000 |
+| Dashboard (live map) | http://localhost:8000/dashboard |
+| Upload drone image | http://localhost:8000/upload |
+| API docs | http://localhost:8000/docs |
+
+## 🔗 API Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/login` | Login |
+| POST | `/api/logout` | Logout |
+| POST | `/api/detect` | Upload image → run AI detection |
+| GET | `/api/zones` | Get all disaster zones |
+| PATCH | `/api/zone/{id}` | Mark zone as rescued |
+| GET | `/api/active-sessions` | Get currently logged-in operators |
