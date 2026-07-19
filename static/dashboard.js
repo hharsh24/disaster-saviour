@@ -41,11 +41,17 @@ const AI_DECISION = { critical: 'IMMEDIATE DISPATCH REQUIRED', high: 'PRIORITY R
 /* ── Map marker ── */
 function createMarker(zone, isRescued) {
     const lv = isRescued ? 'rescued' : getSev(zone.priority_score);
-    const col = SEV_COLOR[lv];
-    const r = isRescued ? 6 : (lv === 'critical' ? 12 : lv === 'high' ? 10 : 8);
+    // Rescued zones → bright green; active zones → their severity color
+    const col = isRescued ? '#00e676' : SEV_COLOR[lv];
+    const r = isRescued ? 9 : (lv === 'critical' ? 12 : lv === 'high' ? 10 : 8);
     const marker = L.circleMarker([zone.lat, zone.long], {
-        color: col, fillColor: col, radius: r, weight: 2,
-        fillOpacity: isRescued ? 0.2 : 0.65, opacity: isRescued ? 0.35 : 1
+        color: isRescued ? '#00e676' : col,
+        fillColor: isRescued ? '#00e676' : col,
+        radius: r,
+        weight: isRescued ? 2 : 2,
+        fillOpacity: isRescued ? 0.55 : 0.65,
+        opacity: 1,
+        dashArray: isRescued ? '4 3' : null  // dashed border for rescued
     });
     const popupHtml = `
         <div style="font-family:'Outfit',sans-serif;min-width:160px;">
@@ -58,7 +64,7 @@ function createMarker(zone, isRescued) {
                 <div>AI Score: <strong style="color:${col};">${(zone.priority_score*100).toFixed(1)}%</strong></div>
                 <div style="font-size:0.68rem;color:#2a4a6a;margin-top:0.3rem;">${zone.lat.toFixed(4)}, ${zone.long.toFixed(4)}</div>
             </div>
-            ${!isRescued ? `<button onclick="markDone(${zone.id})" style="margin-top:0.5rem;width:100%;padding:0.4rem;border-radius:6px;background:transparent;border:1px solid rgba(0,230,118,0.4);color:#00e676;font-size:0.72rem;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:700;text-transform:uppercase;">✓ Mark Rescued</button>` : ''}
+            ${isRescued ? `<div style="margin-top:0.5rem;text-align:center;font-size:0.78rem;color:#00e676;font-weight:700;">✅ Zone Rescued</div>` : `<button onclick="markDone(${zone.id})" style="margin-top:0.5rem;width:100%;padding:0.4rem;border-radius:6px;background:transparent;border:1px solid rgba(0,230,118,0.4);color:#00e676;font-size:0.72rem;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:700;text-transform:uppercase;">✓ Mark Rescued</button>`}
         </div>`;
     marker.bindPopup(popupHtml, { maxWidth: 220 });
     return marker;
@@ -113,7 +119,11 @@ function updateDashboard(activeZones, rescuedZones) {
 
     rescuedZones.forEach(zone => {
         if (markers[zone.id]) {
-            markers[zone.id].setStyle({ color: '#2a4a6a', fillColor: '#2a4a6a', fillOpacity: 0.2, opacity: 0.35, radius: 5 });
+            // Update existing marker to green rescued style
+            markers[zone.id].setStyle({
+                color: '#00e676', fillColor: '#00e676',
+                fillOpacity: 0.55, opacity: 1, radius: 9, dashArray: '4 3'
+            });
         } else {
             const m = createMarker(zone, true);
             m.addTo(map);
@@ -237,9 +247,23 @@ async function markDone(id) {
     try {
         const res = await fetch(`/api/zone/${id}`, { method: 'PATCH' });
         if (res.ok) {
+            // Remove from active zone card list
             const card = document.querySelector(`.zone-card[data-id="${id}"]`);
             if (card) { card.classList.add('removing'); card.addEventListener('animationend', () => card.remove(), { once: true }); }
-            if (markers[id]) markers[id].setStyle({ color: '#2a4a6a', fillColor: '#2a4a6a', fillOpacity: 0.2, opacity: 0.35, radius: 5 });
+            // Immediately turn marker GREEN on map
+            if (markers[id]) {
+                markers[id].setStyle({
+                    color: '#00e676', fillColor: '#00e676',
+                    fillOpacity: 0.55, opacity: 1, radius: 9, dashArray: '4 3'
+                });
+                // Update popup to show rescued state
+                markers[id].setPopupContent(`
+                    <div style="font-family:'Outfit',sans-serif;min-width:160px;">
+                        <div style="font-weight:700;font-size:0.9rem;text-transform:uppercase;color:#00e676;margin-bottom:0.5rem;letter-spacing:0.5px;">✓ RESCUED</div>
+                        <div style="font-size:0.78rem;color:#5a8fbb;">Zone #${id} has been rescued.</div>
+                        <div style="margin-top:0.5rem;text-align:center;font-size:0.78rem;color:#00e676;font-weight:700;">✅ Zone Rescued</div>
+                    </div>`);
+            }
         }
     } catch (err) {
         console.error('Error:', err);
