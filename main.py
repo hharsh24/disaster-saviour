@@ -99,7 +99,28 @@ async def detect_zone(
     # Run ML Inference
     inference_results = run_inference(image_bytes)
     
-    # Create Zone Record
+    # Check if a zone already exists at this location (within ~11 meters, i.e., 0.0001 deg)
+    existing_zone = db.query(models_db.Zone).filter(
+        models_db.Zone.lat >= final_lat - 0.0001,
+        models_db.Zone.lat <= final_lat + 0.0001,
+        models_db.Zone.long >= final_long - 0.0001,
+        models_db.Zone.long <= final_long + 0.0001
+    ).first()
+    
+    if existing_zone:
+        if existing_zone.status == "rescued":
+            raise HTTPException(status_code=400, detail="This area has already been rescued. No new active zone created.")
+        else:
+            # Update existing active zone instead of creating duplicate
+            existing_zone.victim_count = inference_results["victim_count"]
+            existing_zone.severity_label = inference_results["severity_label"]
+            existing_zone.severity_score = inference_results["severity_score"]
+            existing_zone.priority_score = inference_results["priority_score"]
+            db.commit()
+            db.refresh(existing_zone)
+            return {"message": "Active zone updated with new intel", "zone_id": existing_zone.id, "results": inference_results}
+
+    # Create new Zone Record
     new_zone = models_db.Zone(
         lat=final_lat,
         long=final_long,

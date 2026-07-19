@@ -74,6 +74,11 @@ def predict_priority(victim_count, severity_score):
         return float((0.6 * victim_count) + (0.4 * severity_score) + noise)
 
 def run_inference(image_bytes: bytes):
+    import hashlib
+    # Make mock logic deterministic for the same image
+    h = hashlib.md5(image_bytes).hexdigest()
+    random.seed(int(h, 16))
+    
     try:
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     except Exception:
