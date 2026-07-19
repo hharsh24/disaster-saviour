@@ -10,3 +10,6 @@ numpy
 ultralytics
 pillow
 itsdangerous
+
+gradio
+opencv-python-headless
