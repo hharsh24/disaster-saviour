@@ -3,33 +3,198 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Disaster Saviour - System Login</title>
+    <meta name="description" content="Disaster Saviour - Emergency Response Command Platform. Login to access the live disaster response dashboard.">
+    <title>Disaster Saviour — System Access</title>
     <link rel="stylesheet" href="/static/style.css">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 </head>
 <body>
-    <div class="login-container">
-        <div class="login-card">
-            <h2><i class="ph-fill ph-shield-check" style="color: var(--accent); margin-right: 0.5rem; vertical-align: middle;"></i>Disaster Saviour</h2>
-            <form id="login-form">
-                <div class="form-group">
-                    <label for="username"><i class="ph ph-user"></i> Operator ID</label>
-                    <input type="text" id="username" placeholder="Enter your ID" required>
-                </div>
-                <div class="form-group">
-                    <label for="password"><i class="ph ph-lock-key"></i> Passcode</label>
-                    <input type="password" id="password" placeholder="Enter your passcode" required>
-                </div>
-                <button type="submit" id="login-btn"><i class="ph-bold ph-sign-in"></i> Authenticate</button>
-                <button type="button" id="signup-btn" class="btn-outline" style="margin-top: 15px;"><i class="ph-bold ph-user-plus"></i> Request Access</button>
-                <div id="error-message" class="error-message"></div>
-                <div id="success-message" style="color: var(--success); margin-top: 1.2rem; text-align: center; font-size: 0.9rem; font-weight: 600;"></div>
-            </form>
-            <div style="margin-top: 1.5rem; text-align: center; color: var(--text-secondary); font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 0.4rem;">
-                <i class="ph-fill ph-info"></i> Default credentials: admin / admin
+    <canvas id="particleCanvas" style="position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.4;"></canvas>
+
+    <div class="login-page-wrapper">
+        <div class="login-card" id="login-card" role="main">
+            <div class="login-card-top-line"></div>
+
+            <div class="login-header">
+                <i class="ph-fill ph-shield-warning login-icon" aria-hidden="true"></i>
+                <h1>Disaster Saviour</h1>
+                <p id="system-status-text">Initializing Secure Access...</p>
             </div>
+
+            <div class="auth-tabs" role="tablist" aria-label="Authentication mode">
+                <button class="auth-tab active" id="tab-login" role="tab" aria-selected="true" onclick="switchTab('login')">
+                    <i class="ph-bold ph-sign-in" aria-hidden="true"></i> Login
+                </button>
+                <button class="auth-tab" id="tab-signup" role="tab" aria-selected="false" onclick="switchTab('signup')">
+                    <i class="ph-bold ph-user-plus" aria-hidden="true"></i> Sign Up
+                </button>
+            </div>
+
+            <!-- LOGIN FORM -->
+            <form id="panel-login" autocomplete="off" novalidate>
+                <div class="form-group">
+                    <label for="login-username">
+                        <i class="ph-bold ph-identification-badge" aria-hidden="true"></i>
+                        Operator ID
+                    </label>
+                    <div class="input-wrapper">
+                        <input type="text" id="login-username" name="username" placeholder="Enter operator ID" autocomplete="username" required>
+                        <i class="ph-bold ph-user input-icon" aria-hidden="true"></i>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">
+                        <i class="ph-bold ph-lock" aria-hidden="true"></i>
+                        Access Code
+                    </label>
+                    <div class="input-wrapper">
+                        <input type="password" id="login-password" name="password" placeholder="Enter access code" autocomplete="current-password" required>
+                        <i class="ph-bold ph-lock input-icon" aria-hidden="true"></i>
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary" id="login-btn">
+                    <i class="ph-bold ph-sign-in" aria-hidden="true"></i> Authenticate
+                </button>
+            </form>
+
+            <!-- SIGNUP FORM -->
+            <form id="panel-signup" style="display:none;" autocomplete="off" novalidate>
+                <div class="form-group">
+                    <label for="signup-username">
+                        <i class="ph-bold ph-identification-badge" aria-hidden="true"></i>
+                        Choose Operator ID
+                    </label>
+                    <div class="input-wrapper">
+                        <input type="text" id="signup-username" name="username" placeholder="Choose a unique ID" autocomplete="off" required>
+                        <i class="ph-bold ph-user-circle input-icon" aria-hidden="true"></i>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="signup-password">
+                        <i class="ph-bold ph-lock" aria-hidden="true"></i>
+                        Set Access Code
+                    </label>
+                    <div class="input-wrapper">
+                        <input type="password" id="signup-password" name="password" placeholder="Create a secure code" autocomplete="new-password" required>
+                        <i class="ph-bold ph-lock-key input-icon" aria-hidden="true"></i>
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary" id="signup-btn">
+                    <i class="ph-bold ph-user-plus" aria-hidden="true"></i> Register Access
+                </button>
+            </form>
+
+            <div id="error-message" class="msg-error" style="display:none;" role="alert" aria-live="assertive"></div>
+            <div id="success-message" class="msg-success" style="display:none;" role="status" aria-live="polite"></div>
         </div>
     </div>
-    <script src="/static/login.js"></script>
+
+    <script>
+    /* ── Animated Particles ── */
+    (function() {
+        const canvas = document.getElementById('particleCanvas');
+        const ctx = canvas.getContext('2d');
+        let W, H, particles = [];
+        function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resize); resize();
+        for (let i = 0; i < 60; i++) particles.push({ x: Math.random()*W, y: Math.random()*H, r: Math.random()*1.5+0.3, dx: (Math.random()-0.5)*0.3, dy: -(Math.random()*0.5+0.1), alpha: Math.random()*0.5+0.1 });
+        function draw() {
+            ctx.clearRect(0,0,W,H);
+            particles.forEach(p => {
+                ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+                ctx.fillStyle=`rgba(0,212,255,${p.alpha})`; ctx.fill();
+                p.x+=p.dx; p.y+=p.dy;
+                if(p.y<-5){p.y=H+5;p.x=Math.random()*W;} if(p.x<0)p.x=W; if(p.x>W)p.x=0;
+            });
+            requestAnimationFrame(draw);
+        }
+        draw();
+    })();
+
+    /* ── Status typewriter ── */
+    const msgs = ['System Online — Secure Channel', 'Satellite Link: ACTIVE', 'Emergency Response Network: READY', 'Authenticate to Access Intel'];
+    let mIdx = 0;
+    const stEl = document.getElementById('system-status-text');
+    function cycleStatus() {
+        stEl.style.opacity='0';
+        setTimeout(() => { stEl.textContent=msgs[mIdx++%msgs.length]; stEl.style.transition='opacity 0.5s'; stEl.style.opacity='1'; }, 300);
+    }
+    cycleStatus(); setInterval(cycleStatus, 3000);
+
+    /* ── Tab switching ── */
+    function switchTab(tab) {
+        const isLogin = tab==='login';
+        document.getElementById('tab-login').classList.toggle('active', isLogin);
+        document.getElementById('tab-signup').classList.toggle('active', !isLogin);
+        document.getElementById('panel-login').style.display = isLogin ? '' : 'none';
+        document.getElementById('panel-signup').style.display = isLogin ? 'none' : '';
+        clearMessages();
+    }
+    window.switchTab = switchTab;
+
+    function clearMessages() {
+        ['error-message','success-message'].forEach(id=>{
+            const el=document.getElementById(id); el.style.display='none'; el.innerHTML='';
+        });
+    }
+    function showError(msg) {
+        const el=document.getElementById('error-message');
+        el.innerHTML=`<i class="ph-fill ph-warning-circle"></i> ${msg}`; el.style.display='flex';
+        document.getElementById('success-message').style.display='none';
+    }
+    function showSuccess(msg) {
+        const el=document.getElementById('success-message');
+        el.innerHTML=`<i class="ph-fill ph-check-circle"></i> ${msg}`; el.style.display='flex';
+        document.getElementById('error-message').style.display='none';
+    }
+
+    /* ── LOGIN ── */
+    document.getElementById('panel-login').addEventListener('submit', async (e) => {
+        e.preventDefault(); clearMessages();
+        const btn=document.getElementById('login-btn');
+        const username=document.getElementById('login-username').value.trim();
+        const password=document.getElementById('login-password').value;
+        if(!username||!password){showError('Please fill in all fields.');return;}
+        btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Authenticating...';
+        try {
+            const res=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});
+            if(res.ok){
+                btn.innerHTML='<i class="ph-bold ph-check-circle"></i> Access Granted';
+                btn.style.background='linear-gradient(135deg,#00e676,#007a3d)';
+                setTimeout(()=>{window.location.href='/dashboard';},600);
+            } else {
+                const data=await res.json();
+                showError(data.detail||'Authentication failed.');
+                btn.disabled=false; btn.innerHTML='<i class="ph-bold ph-sign-in"></i> Authenticate';
+            }
+        } catch { showError('Network error.'); btn.disabled=false; btn.innerHTML='<i class="ph-bold ph-sign-in"></i> Authenticate'; }
+    });
+
+    /* ── SIGNUP ── */
+    document.getElementById('panel-signup').addEventListener('submit', async (e) => {
+        e.preventDefault(); clearMessages();
+        const btn=document.getElementById('signup-btn');
+        const username=document.getElementById('signup-username').value.trim();
+        const password=document.getElementById('signup-password').value;
+        if(!username||!password){showError('Please fill in all fields.');return;}
+        if(username.length<3){showError('Operator ID must be at least 3 characters.');return;}
+        if(password.length<4){showError('Access code must be at least 4 characters.');return;}
+        btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Registering...';
+        try {
+            const res=await fetch('/api/signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});
+            const data=await res.json();
+            if(res.ok){
+                showSuccess(data.message||'Registered! You can now login.');
+                btn.disabled=false; btn.innerHTML='<i class="ph-bold ph-user-plus"></i> Register Access';
+                document.getElementById('signup-username').value='';
+                document.getElementById('signup-password').value='';
+                setTimeout(()=>switchTab('login'),1800);
+            } else {
+                showError(data.detail||'Registration failed.');
+                btn.disabled=false; btn.innerHTML='<i class="ph-bold ph-user-plus"></i> Register Access';
+            }
+        } catch { showError('Network error.'); btn.disabled=false; btn.innerHTML='<i class="ph-bold ph-user-plus"></i> Register Access'; }
+    });
+    </script>
 </body>
 </html>
