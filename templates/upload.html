@@ -97,6 +97,13 @@
         e.preventDefault();
         const btn=document.getElementById('submit-btn'),resultBox=document.getElementById('result-box'),errorBox=document.getElementById('upload-error');
         resultBox.classList.remove('visible'); errorBox.style.display='none';
+        
+        if(!fileInput.files || fileInput.files.length === 0) {
+            errorBox.innerHTML='<i class="ph-fill ph-warning-circle"></i> Please select a field image to upload.';
+            errorBox.style.display='flex';
+            return;
+        }
+        
         btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Analyzing...';
         try {
             const res=await fetch('/api/detect',{method:'POST',body:new FormData(document.getElementById('upload-form'))});
