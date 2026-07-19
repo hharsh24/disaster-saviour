@@ -3,37 +3,126 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Drone Upload Simulator</title>
+    <meta name="description" content="Disaster Saviour — Drone Simulator. Upload field images and pick GPS coordinates to log disaster zones.">
+    <title>Disaster Saviour — Drone Simulator</title>
     <link rel="stylesheet" href="/static/style.css">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 </head>
 <body>
-    <header>
-        <div class="logo"><i class="ph-fill ph-airplane-tilt"></i> Drone Upload Sim</div>
-        <div class="user-info">
-            <a href="/dashboard"><i class="ph-bold ph-arrow-left"></i> Back to HQ</a>
+    <header role="banner">
+        <div class="logo">
+            <i class="ph-fill ph-shield-warning logo-icon" aria-hidden="true"></i>
+            Disaster Saviour
         </div>
+        <div class="header-status"><span class="header-status-dot"></span>DRONE SIM</div>
+        <nav class="user-info">
+            <a href="/dashboard"><i class="ph-bold ph-arrow-left"></i> Dashboard</a>
+            <button class="btn-outline" onclick="logout()" style="width:auto;padding:0.5rem 1.1rem;font-size:0.82rem;">
+                <i class="ph-bold ph-sign-out"></i> Disconnect
+            </button>
+        </nav>
     </header>
 
-    <div class="container">
-        <div class="upload-layout">
-            <div class="form-container">
-                <h2><i class="ph-fill ph-upload-simple" style="color: var(--accent);"></i> Transmit Intel</h2>
-                <p style="color: var(--text-secondary); margin-bottom: 2.5rem; line-height: 1.6;">Simulate drone transmission. Location coordinates will be extracted automatically from the image metadata before dispatching to the AI inference engine.</p>
-                
-                <form id="upload-form">
-                    <div class="form-group" style="margin-top: 1.5rem;">
-                        <label><i class="ph-fill ph-image"></i> Intelligence Image</label>
-                        <input type="file" name="file" accept="image/png, image/jpeg" required>
+    <div class="container upload-wrapper" role="main">
+        <div class="form-container">
+            <div class="form-container-top-line"></div>
+            <h2><i class="ph-fill ph-airplane-tilt" style="color:var(--accent);"></i> Drone Field Upload</h2>
+            <p class="subtitle">Upload a field image and mark the GPS location to log a new disaster zone for AI analysis.</p>
+
+            <form id="upload-form" enctype="multipart/form-data" novalidate>
+
+                <!-- File Drop Zone -->
+                <div class="form-group">
+                    <label for="field-image"><i class="ph-bold ph-image"></i> Field Image (Drone / Camera)</label>
+                    <div class="file-drop-zone" id="drop-zone">
+                        <input type="file" id="field-image" name="file" accept="image/*">
+                        <div class="file-drop-icon"><i class="ph-bold ph-upload-simple"></i></div>
+                        <div class="file-drop-text">Drag & drop or <strong>click to browse</strong></div>
+                        <div class="file-drop-text" style="font-size:0.78rem;margin-top:0.25rem;">PNG, JPG, WEBP — EXIF GPS auto-detected</div>
+                        <div class="file-name-display" id="file-name-display" style="display:none;"></div>
                     </div>
-                    
-                    <button type="submit" style="margin-top: 2rem;"><i class="ph-bold ph-paper-plane-tilt"></i> Process Image & Dispatch</button>
-                    <div id="result-message" style="margin-top: 1.5rem; font-weight: 600;"></div>
-                </form>
-            </div>
+                </div>
+
+                <!-- Location Picker -->
+                <div class="form-group">
+                    <label><i class="ph-bold ph-map-pin"></i> GPS Location (click map to set)</label>
+                    <div id="location-picker"></div>
+                    <div style="display:flex;gap:1rem;margin-top:0.75rem;">
+                        <div style="flex:1;">
+                            <label for="lat-input" style="font-size:0.72rem;color:var(--text-muted);margin-bottom:0.3rem;display:block;">Latitude</label>
+                            <input type="number" id="lat-input" name="lat" placeholder="Auto / click map" step="any">
+                        </div>
+                        <div style="flex:1;">
+                            <label for="long-input" style="font-size:0.72rem;color:var(--text-muted);margin-bottom:0.3rem;display:block;">Longitude</label>
+                            <input type="number" id="long-input" name="long" placeholder="Auto / click map" step="any">
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-primary" id="submit-btn">
+                    <i class="ph-bold ph-paper-plane-tilt"></i> Run AI Detection
+                </button>
+            </form>
+
+            <div class="result-box" id="result-box" role="status" aria-live="polite"></div>
+            <div id="upload-error" class="msg-error" style="display:none;" role="alert"></div>
         </div>
     </div>
 
-    <script src="/static/upload.js"></script>
+    <script>
+    async function logout() { await fetch('/api/logout',{method:'POST'}); window.location.href='/'; }
+
+    /* File drop */
+    const dropZone=document.getElementById('drop-zone'), fileInput=document.getElementById('field-image'), fileDisplay=document.getElementById('file-name-display');
+    fileInput.addEventListener('change',()=>{ if(fileInput.files[0]){fileDisplay.textContent='📎 '+fileInput.files[0].name;fileDisplay.style.display='block';} });
+    ['dragenter','dragover'].forEach(ev=>dropZone.addEventListener(ev,e=>{e.preventDefault();dropZone.classList.add('dragover');}));
+    ['dragleave','drop'].forEach(ev=>dropZone.addEventListener(ev,e=>{e.preventDefault();dropZone.classList.remove('dragover');if(ev==='drop'&&e.dataTransfer.files[0]){fileInput.files=e.dataTransfer.files;fileDisplay.textContent='📎 '+e.dataTransfer.files[0].name;fileDisplay.style.display='block';}}));
+
+    /* Map picker */
+    const pickerMap=L.map('location-picker',{zoomControl:true}).setView([28.6139,77.2090],8);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap © CARTO',subdomains:'abcd',maxZoom:20}).addTo(pickerMap);
+    let pinMarker=null;
+    pickerMap.on('click',e=>{
+        const {lat,lng}=e.latlng;
+        document.getElementById('lat-input').value=lat.toFixed(6);
+        document.getElementById('long-input').value=lng.toFixed(6);
+        if(pinMarker)pickerMap.removeLayer(pinMarker);
+        pinMarker=L.circleMarker([lat,lng],{color:'#00d4ff',fillColor:'#00d4ff',radius:8,weight:2,fillOpacity:0.7}).addTo(pickerMap).bindPopup(`<span style="font-family:monospace;color:#000;">${lat.toFixed(4)}, ${lng.toFixed(4)}</span>`).openPopup();
+    });
+
+    /* Form submit */
+    document.getElementById('upload-form').addEventListener('submit',async(e)=>{
+        e.preventDefault();
+        const btn=document.getElementById('submit-btn'),resultBox=document.getElementById('result-box'),errorBox=document.getElementById('upload-error');
+        resultBox.classList.remove('visible'); errorBox.style.display='none';
+        btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Analyzing...';
+        try {
+            const res=await fetch('/api/detect',{method:'POST',body:new FormData(document.getElementById('upload-form'))});
+            const data=await res.json();
+            if(res.ok){
+                const r=data.results;
+                const c=r.priority_score>=0.75?'var(--zone-red)':r.priority_score>=0.5?'var(--zone-orange)':r.priority_score>=0.25?'var(--zone-yellow)':'var(--zone-green)';
+                resultBox.innerHTML=`<div style="color:var(--zone-green);margin-bottom:0.75rem;font-weight:700;">✔ Zone #${data.zone_id} logged</div><table style="width:100%;border-collapse:collapse;"><tr><td style="padding:0.2rem 0;color:var(--text-secondary);">Severity</td><td style="text-align:right;color:${c};font-weight:700;text-transform:capitalize;">${r.severity_label}</td></tr><tr><td style="padding:0.2rem 0;color:var(--text-secondary);">Victims</td><td style="text-align:right;">${r.victim_count}</td></tr><tr><td style="padding:0.2rem 0;color:var(--text-secondary);">AI Priority</td><td style="text-align:right;color:${c};font-weight:700;">${(r.priority_score*100).toFixed(1)}%</td></tr></table><div style="margin-top:0.75rem;text-align:center;"><a href="/dashboard" style="color:var(--accent);font-size:0.82rem;">→ View on Dashboard</a></div>`;
+                resultBox.classList.add('visible');
+                btn.innerHTML='<i class="ph-bold ph-check-circle"></i> Detection Complete';
+                btn.style.background='linear-gradient(135deg,var(--zone-green),#007a3d)';
+                document.getElementById('upload-form').reset();
+                fileDisplay.style.display='none';
+                if(pinMarker){pickerMap.removeLayer(pinMarker);pinMarker=null;}
+                setTimeout(()=>{btn.disabled=false;btn.style.background='';btn.innerHTML='<i class="ph-bold ph-paper-plane-tilt"></i> Run AI Detection';},3000);
+            } else {
+                errorBox.innerHTML=`<i class="ph-fill ph-warning-circle"></i> ${data.detail||'Detection failed.'}`;
+                errorBox.style.display='flex';
+                btn.disabled=false; btn.innerHTML='<i class="ph-bold ph-paper-plane-tilt"></i> Run AI Detection';
+            }
+        } catch(err){
+            errorBox.innerHTML='<i class="ph-fill ph-warning-circle"></i> Network error.';
+            errorBox.style.display='flex';
+            btn.disabled=false; btn.innerHTML='<i class="ph-bold ph-paper-plane-tilt"></i> Run AI Detection';
+        }
+    });
+    </script>
 </body>
 </html>

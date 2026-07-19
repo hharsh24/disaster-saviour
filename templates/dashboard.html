@@ -3,242 +3,151 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Live Intel</title>
+    <meta name="description" content="Disaster Saviour — Live Command Dashboard. Real-time disaster zone tracking, severity mapping and rescue coordination.">
+    <title>Disaster Saviour — Live Command Center</title>
     <link rel="stylesheet" href="/static/style.css">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-    <style>
-        /* ── Active Operators Panel ── */
-        .operators-panel {
-            background: var(--card-bg, #0f1923);
-            border: 1px solid var(--card-border, #1e3a5f);
-            border-radius: 12px;
-            padding: 1.25rem 1.5rem;
-            margin-bottom: 1.25rem;
-        }
-        .operators-panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
-        .operators-panel-header h3 {
-            margin: 0;
-            font-size: 0.95rem;
-            color: var(--text-primary, #e0f0ff);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .live-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.35rem;
-            background: rgba(0,255,120,0.12);
-            color: #00ff88;
-            font-size: 0.7rem;
-            font-weight: 700;
-            padding: 0.2rem 0.65rem;
-            border-radius: 20px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        .live-dot {
-            width: 7px;
-            height: 7px;
-            background: #00ff88;
-            border-radius: 50%;
-            animation: blink 1.2s infinite;
-        }
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50%       { opacity: 0.2; }
-        }
-        .operators-list {
-            display: flex;
-            flex-direction: row;
-            flex-wrap: wrap;
-            gap: 0.6rem;
-        }
-        .operator-row {
-            display: flex;
-            align-items: center;
-            gap: 0.6rem;
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(0,200,255,0.12);
-            border-radius: 10px;
-            padding: 0.5rem 0.9rem;
-            transition: background 0.2s, border-color 0.2s;
-            min-width: 160px;
-        }
-        .operator-row:hover {
-            background: rgba(0,200,255,0.08);
-            border-color: rgba(0,200,255,0.25);
-        }
-        .op-avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #0077e6, #00c8ff);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.85rem;
-            font-weight: 700;
-            color: #fff;
-            flex-shrink: 0;
-        }
-        .op-info {
-            display: flex;
-            flex-direction: column;
-            gap: 0.1rem;
-            flex: 1;
-        }
-        .op-name {
-            font-weight: 600;
-            font-size: 0.88rem;
-            color: var(--text-primary, #e0f0ff);
-        }
-        .op-time {
-            font-size: 0.7rem;
-            color: var(--text-secondary, #6a8faf);
-        }
-        .op-indicator {
-            width: 8px;
-            height: 8px;
-            background: #00ff88;
-            border-radius: 50%;
-            box-shadow: 0 0 6px #00ff88;
-            flex-shrink: 0;
-        }
-        .operators-empty {
-            color: var(--text-secondary, #6a8faf);
-            font-size: 0.85rem;
-            padding: 0.4rem 0;
-        }
-        #ops-refresh-time {
-            font-size: 0.7rem;
-            color: var(--text-secondary, #6a8faf);
-        }
-    </style>
 </head>
 <body>
-    <header>
-        <div class="logo"><i class="ph-fill ph-radar"></i> AI Intel Dashboard</div>
-        <div class="user-info">
-            <span><i class="ph-fill ph-user-circle"></i> Operator: <strong style="color: #fff;">{{ user }}</strong></span>
-            <a href="/upload"><i class="ph-bold ph-airplane-tilt"></i> Drone Sim</a>
-            <button class="btn-outline" onclick="logout()" style="padding: 0.6rem 1.2rem; width: auto; font-size: 0.9rem;"><i class="ph-bold ph-sign-out"></i> Disconnect</button>
+    <header role="banner">
+        <div class="logo">
+            <i class="ph-fill ph-shield-warning logo-icon" aria-hidden="true"></i>
+            Disaster Saviour
         </div>
+        <div class="header-status" aria-label="System status: online">
+            <span class="header-status-dot"></span>
+            SYS ONLINE
+        </div>
+        <nav class="user-info" aria-label="User navigation">
+            <div class="operator-badge">
+                <i class="ph-fill ph-user-circle" style="color:var(--accent);" aria-hidden="true"></i>
+                <span>Operator: <strong>{{ user }}</strong></span>
+            </div>
+            <a href="/upload" aria-label="Go to Drone Simulator">
+                <i class="ph-bold ph-airplane-tilt" aria-hidden="true"></i> Drone Sim
+            </a>
+            <button class="btn-outline" onclick="logout()" aria-label="Disconnect" style="width:auto;padding:0.5rem 1.1rem;font-size:0.82rem;">
+                <i class="ph-bold ph-sign-out" aria-hidden="true"></i> Disconnect
+            </button>
+        </nav>
     </header>
 
-    <div class="container">
+    <main class="container" role="main">
 
-        <!-- ── Active Operators Panel ── -->
-        <div class="operators-panel">
-            <div class="operators-panel-header">
-                <h3>
-                    <i class="ph-fill ph-users" style="color:#00c8ff; font-size:1.15rem;"></i>
-                    Active Operators
-                    <span class="live-badge"><span class="live-dot"></span> Live</span>
-                </h3>
-                <span id="ops-refresh-time">Refreshing...</span>
+        <!-- Stats Bar -->
+        <section class="dashboard-top-bar" aria-label="Zone statistics">
+            <div class="stat-box danger">
+                <i class="ph-fill ph-warning stat-icon danger-color" aria-hidden="true"></i>
+                <div><div class="stat-label">Critical</div><div class="stat-value danger-color" id="count-critical">0</div></div>
             </div>
-            <div class="operators-list" id="operators-list">
-                <div class="operators-empty">Loading...</div>
+            <div class="stat-box orange">
+                <i class="ph-fill ph-fire stat-icon orange-color" aria-hidden="true"></i>
+                <div><div class="stat-label">High</div><div class="stat-value orange-color" id="count-high">0</div></div>
+            </div>
+            <div class="stat-box yellow">
+                <i class="ph-fill ph-warning-circle stat-icon yellow-color" aria-hidden="true"></i>
+                <div><div class="stat-label">Medium</div><div class="stat-value yellow-color" id="count-medium">0</div></div>
+            </div>
+            <div class="stat-box green">
+                <i class="ph-fill ph-check-circle stat-icon green-color" aria-hidden="true"></i>
+                <div><div class="stat-label">Rescued</div><div class="stat-value green-color" id="count-rescued">0</div></div>
+            </div>
+            <div class="stat-box" style="margin-left:auto;">
+                <i class="ph-fill ph-map-pin stat-icon accent-color" aria-hidden="true"></i>
+                <div><div class="stat-label">Total Active</div><div class="stat-value accent-color" id="count-total">0</div></div>
+            </div>
+        </section>
+
+        <!-- Operators Bar -->
+        <div class="operators-bar" id="operators-bar" role="complementary" aria-label="Active operators">
+            <span class="operators-bar-title">
+                <i class="ph-fill ph-users" style="color:var(--accent);" aria-hidden="true"></i>
+                Active Operators
+            </span>
+            <div class="operators-chips" id="operators-chips" aria-live="polite">
+                <span style="color:var(--text-muted);font-size:0.8rem;">Loading...</span>
+            </div>
+            <div class="live-pill">
+                <span class="live-pill-dot"></span> LIVE
             </div>
         </div>
 
+        <!-- Main Grid -->
         <div class="dashboard-grid">
-            <div class="map-container">
-                <div id="map"></div>
+            <!-- Map -->
+            <div class="map-container" role="region" aria-label="Zone map">
+                <div class="map-overlay-label"><i class="ph-fill ph-radar"></i> LIVE ZONE INTEL</div>
+                <div id="map" role="application" aria-label="Interactive disaster zone map"></div>
             </div>
-            
-            <div class="list-container">
-                <div class="list-header" style="flex-direction: column; align-items: stretch; gap: 1.25rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <h3><i class="ph-fill ph-warning-circle" style="color: var(--warning);"></i> Active Zones</h3>
-                        <div class="status-pulse">Tracking...</div>
+
+            <!-- Right Panel -->
+            <div class="panel-container">
+                <!-- Active Zones -->
+                <div class="panel-section" style="flex:2;" role="region" aria-label="Active zones">
+                    <div class="panel-header">
+                        <h3>
+                            <span class="pulse-dot" aria-hidden="true"></span>
+                            <i class="ph-fill ph-warning-circle" style="color:var(--zone-orange);" aria-hidden="true"></i>
+                            Active Zones
+                        </h3>
+                        <span class="tag" id="active-badge">0 zones</span>
                     </div>
-                    <div class="metrics-bar" style="display: flex; gap: 1rem;">
-                        <div class="metric-card">
-                            <i class="ph-fill ph-map-pin" style="color: var(--accent); font-size: 1.5rem;"></i>
-                            <div style="display: flex; flex-direction: column;">
-                                <span class="metric-value" id="active-count" style="color: var(--accent);">0</span>
-                                <span style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Active</span>
-                            </div>
-                        </div>
-                        <div class="metric-card">
-                            <i class="ph-fill ph-check-circle" style="color: var(--success); font-size: 1.5rem;"></i>
-                            <div style="display: flex; flex-direction: column;">
-                                <span class="metric-value" id="rescued-count" style="color: var(--success);">0</span>
-                                <span style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Rescued</span>
-                            </div>
+                    <div class="zones-scroll" id="zones-list" role="list" aria-live="polite">
+                        <div class="empty-state">
+                            <i class="ph-fill ph-check-circle" style="color:var(--zone-green);font-size:2.5rem;opacity:0.5;"></i>
+                            <span>No active zones</span>
+                            <span style="font-size:0.75rem;color:var(--text-muted);">All clear — monitoring</span>
                         </div>
                     </div>
                 </div>
-                <div class="zones-list" id="zones-list">
-                    <!-- Zones injected here via JS -->
-                </div>
-                
-                <div class="list-header" style="border-top: 1px solid var(--card-border); margin-top: auto; padding-top: 1.25rem; padding-bottom: 0.75rem;">
-                    <h3><i class="ph-fill ph-clipboard-text"></i> Mission Log</h3>
-                    <span style="font-size: 0.8rem; color: var(--text-secondary);">Completed Rescues</span>
-                </div>
-                <div class="zones-list rescued-list" id="rescued-list" style="max-height: 250px; flex: none;">
-                    <!-- Rescued Zones injected here via JS -->
+
+                <!-- Mission Log -->
+                <div class="panel-section" style="flex:1;" role="region" aria-label="Mission log">
+                    <div class="panel-header">
+                        <h3>
+                            <i class="ph-fill ph-clipboard-text" style="color:var(--zone-green);" aria-hidden="true"></i>
+                            Mission Log
+                        </h3>
+                        <span class="tag" id="rescued-badge">0 rescued</span>
+                    </div>
+                    <div class="zones-scroll" id="rescued-list" style="gap:0;" role="list" aria-live="polite">
+                        <div class="empty-state">
+                            <i class="ph ph-clipboard-text"></i>
+                            <span>No completed missions</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    </main>
 
     <script src="/static/dashboard.js"></script>
     <script>
-        // ── Active Operators: Poll every 5 seconds ──
-        function formatLoginTime(isoString) {
-            if (!isoString) return '';
-            const date = new Date(isoString + 'Z'); // interpret as UTC
-            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    /* Active Operators */
+    function renderOperators(sessions) {
+        const container = document.getElementById('operators-chips');
+        if (!sessions || sessions.length === 0) {
+            container.innerHTML = '<span style="color:var(--text-muted);font-size:0.78rem;font-style:italic;">No active operators</span>';
+            return;
         }
+        container.innerHTML = sessions.map(s => {
+            const t = s.login_time ? new Date(s.login_time+'Z').toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '';
+            return `<div class="op-chip"><span class="op-chip-dot"></span>${s.username.charAt(0).toUpperCase()+s.username.slice(1)}<span style="opacity:0.5;font-size:0.65rem;">${t}</span></div>`;
+        }).join('');
+    }
 
-        function renderOperators(sessions) {
-            const list = document.getElementById('operators-list');
-            if (!sessions || sessions.length === 0) {
-                list.innerHTML = '<div class="operators-empty"><i class="ph-fill ph-user-minus"></i>&nbsp;No active operators right now</div>';
-                return;
-            }
-            list.innerHTML = sessions.map(s => {
-                const initial = s.username.charAt(0).toUpperCase();
-                return `
-                    <div class="operator-row">
-                        <div class="op-avatar">${initial}</div>
-                        <div class="op-info">
-                            <span class="op-name">${s.username}</span>
-                            <span class="op-time">Since ${formatLoginTime(s.login_time)}</span>
-                        </div>
-                        <div class="op-indicator" title="Online"></div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        async function fetchActiveSessions() {
-            try {
-                const res = await fetch('/api/active-sessions');
-                if (!res.ok) return;
-                const data = await res.json();
-                renderOperators(data.active_sessions);
-                const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                document.getElementById('ops-refresh-time').textContent = 'Updated ' + now;
-            } catch (e) {
-                console.warn('Could not fetch active sessions:', e);
-            }
-        }
-
-        // Initial fetch immediately, then every 5 seconds
-        fetchActiveSessions();
-        setInterval(fetchActiveSessions, 5000);
+    async function fetchOperators() {
+        try {
+            const res = await fetch('/api/active-sessions');
+            if (!res.ok) return;
+            const data = await res.json();
+            renderOperators(data.active_sessions);
+        } catch(e) {}
+    }
+    fetchOperators();
+    setInterval(fetchOperators, 5000);
     </script>
 </body>
 </html>
