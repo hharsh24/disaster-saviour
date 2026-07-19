@@ -91,10 +91,13 @@ async def detect_zone(
     final_long = exif_long if exif_long is not None else long
     
     if final_lat is None or final_long is None:
-        # Fallback to a random location for demo purposes (near Delhi)
+        # Fallback to a deterministic random location based on the image (near Delhi)
         import random
-        final_lat = 28.6139 + random.uniform(-0.1, 0.1)
-        final_long = 77.2090 + random.uniform(-0.1, 0.1)
+        import hashlib
+        h = hashlib.md5(image_bytes).hexdigest()
+        rng = random.Random(h)
+        final_lat = 28.6139 + rng.uniform(-0.1, 0.1)
+        final_long = 77.2090 + rng.uniform(-0.1, 0.1)
     
     # Run ML Inference
     inference_results = run_inference(image_bytes)
