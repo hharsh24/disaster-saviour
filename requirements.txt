@@ -6,7 +6,6 @@ bcrypt==4.0.1
 python-multipart
 jinja2
 xgboost
-numpy
 pillow
 itsdangerous
 opencv-python-headless
