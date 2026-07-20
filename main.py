@@ -4,6 +4,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
+from contextlib import asynccontextmanager
 import os
 
 from database import engine, get_db
@@ -11,12 +12,21 @@ import models_db
 from auth import auth_router, get_current_user, get_password_hash
 from ml.inference import run_inference, load_models
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Load ML models after server starts — avoids OOM crash on startup"""
+    print("Loading ML models...")
+    load_models()
+    print("ML models ready!")
+    yield
+    print("Shutting down...")
+
 # Create DB tables
 models_db.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Disaster Response App")
+app = FastAPI(title="Disaster Response App", lifespan=lifespan)
 
-# Add SessionMiddleware (Required by Prompt 6)
+# Add SessionMiddleware
 app.add_middleware(SessionMiddleware, secret_key="super-secret-hackathon-key")
 
 # Include Auth Router
@@ -27,9 +37,6 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Setup templates
 templates = Jinja2Templates(directory="templates")
-
-# Mock load models
-load_models()
 
 # Ensure we have a default user for testing
 def create_default_user():
@@ -62,8 +69,9 @@ def get_upload_page(request: Request):
 # --- API ENDPOINTS ---
 
 @app.get("/health")
+@app.head("/health")
 def health_check():
-    """Simple health check endpoint"""
+    """Simple health check endpoint — supports HEAD for Render port detection"""
     return {"status": "ok"}
 
 from ml.exif_utils import extract_gps_from_bytes
