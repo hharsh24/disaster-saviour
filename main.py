@@ -110,6 +110,9 @@ async def detect_zone(
     # Run ML Inference
     inference_results = run_inference(image_bytes)
     
+    if inference_results is None:
+        raise HTTPException(status_code=400, detail="Invalid or unreadable image file provided.")
+    
     # Check if a zone already exists at this location (within ~11 meters, i.e., 0.0001 deg)
     existing_zone = db.query(models_db.Zone).filter(
         models_db.Zone.lat >= final_lat - 0.0001,
