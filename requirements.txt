@@ -10,4 +10,3 @@ pillow
 itsdangerous
 opencv-python-headless
 onnxruntime
-numpy<2.0.0
