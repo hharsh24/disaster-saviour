@@ -14,8 +14,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy all the application files into the container
 COPY . .
 
-# Expose port (Render uses $PORT env variable)
-EXPOSE 10000
+# Expose port (Hugging Face uses 7860, Render uses $PORT)
+EXPOSE 7860
 
-# Start the FastAPI server — Render injects $PORT automatically
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-10000}"]
+# Start the FastAPI server
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-7860}"]
