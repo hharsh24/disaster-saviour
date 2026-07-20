@@ -9,4 +9,4 @@ xgboost
 pillow
 itsdangerous
 opencv-python-headless
-onnxruntime
+ultralytics
