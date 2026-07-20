@@ -50,21 +50,21 @@ create_default_user()
 @app.get("/")
 def read_root(request: Request):
     """Serve the login page"""
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse(name="login.html", request=request)
 
 @app.get("/dashboard")
 def get_dashboard(request: Request):
     """Serve the dashboard page. Redirect if not logged in."""
     if not request.session.get("user"):
         return RedirectResponse(url="/")
-    return templates.TemplateResponse("dashboard.html", {"request": request, "user": request.session.get("user")})
+    return templates.TemplateResponse(name="dashboard.html", request=request, context={"user": request.session.get("user")})
 
 @app.get("/upload")
 def get_upload_page(request: Request):
     """Serve the upload page. Redirect if not logged in."""
     if not request.session.get("user"):
         return RedirectResponse(url="/")
-    return templates.TemplateResponse("upload.html", {"request": request})
+    return templates.TemplateResponse(name="upload.html", request=request)
 
 # --- API ENDPOINTS ---
 
