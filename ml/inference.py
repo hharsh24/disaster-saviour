@@ -133,9 +133,10 @@ def run_inference(image_bytes: bytes):
                     })
         except Exception as e:
             print(f"Victim YOLO inference error: {e}")
-            victim_count, _, _ = _smart_mock(image_bytes)
+            victim_count = 0
     else:
-        victim_count, _, _ = _smart_mock(image_bytes)
+        print("Warning: victim_model not loaded, returning 0 victims.")
+        victim_count = 0
 
     # --- Disaster Detection ---
     disaster_detections = []
@@ -162,13 +163,8 @@ def run_inference(image_bytes: bytes):
                         max_weight = max(max_weight, SEVERITY_WEIGHTS.get(cls_name.lower(), 1))
         except Exception as e:
             print(f"Disaster YOLO inference error: {e}")
-            _, mock_cls, mock_conf = _smart_mock(image_bytes)
-            disaster_detections.append({"class": mock_cls, "confidence": mock_conf, "xyxy": []})
-            max_weight = SEVERITY_WEIGHTS.get(mock_cls, 1)
     else:
-        _, mock_cls, mock_conf = _smart_mock(image_bytes)
-        disaster_detections.append({"class": mock_cls, "confidence": mock_conf, "xyxy": []})
-        max_weight = SEVERITY_WEIGHTS.get(mock_cls, 1)
+        print("Warning: disaster_model not loaded, returning no disaster detections.")
 
     # Severity mapping
     if max_weight >= 3:
