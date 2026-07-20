@@ -1,8 +1,8 @@
 fastapi
 uvicorn
 sqlalchemy
-passlib
-bcrypt
+passlib[bcrypt]
+bcrypt==4.0.1
 python-multipart
 jinja2
 xgboost
@@ -10,6 +10,4 @@ numpy
 ultralytics
 pillow
 itsdangerous
-
-gradio
 opencv-python-headless
