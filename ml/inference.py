@@ -60,7 +60,10 @@ def predict_priority(victim_count, severity_score):
             return round(float(pred), 3)
     except Exception:
         pass
-    return round(0.6 * victim_count + 0.4 * severity_score, 3)
+    # Fallback normalizer to keep score in [0, 1] range for frontend percentage
+    norm_victim = min(victim_count, 10) / 10.0
+    norm_severity = min(severity_score, 2) / 2.0
+    return round(0.6 * norm_victim + 0.4 * norm_severity, 3)
 
 def run_inference(image_bytes: bytes):
     victim_count = 0
@@ -127,7 +130,7 @@ def run_inference(image_bytes: bytes):
         severity_label, severity_score = 'minor', 0
 
     priority_score = predict_priority(victim_count, severity_score)
-    priority_score = round(min(9.99, max(0.01, priority_score)), 3)
+    priority_score = round(min(1.0, max(0.01, priority_score)), 3)
 
     return {
         'victim_count':        victim_count,
