@@ -72,7 +72,7 @@
     </div>
 
     <script>
-    async function logout() { await fetch('/api/logout',{method:'POST'}); window.location.href='/'; }
+    async function logout() { await fetch('/api/logout',{method:'POST'}); window.location.href='/login'; }
 
     /* File drop */
     const dropZone=document.getElementById('drop-zone'), fileInput=document.getElementById('field-image'), fileDisplay=document.getElementById('file-name-display');

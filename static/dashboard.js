@@ -74,7 +74,7 @@ function createMarker(zone, isRescued) {
 async function fetchZones() {
     try {
         const res = await fetch('/api/zones');
-        if (res.status === 401) { window.location.href = '/'; return; }
+        if (res.status === 401) { window.location.href = '/login'; return; }
         const data = await res.json();
         updateDashboard(data.active_zones || [], data.rescued_zones || []);
     } catch (err) { console.error('Error fetching zones:', err); }
@@ -273,5 +273,5 @@ async function markDone(id) {
 
 /* ── Logout ── */
 async function logout() {
-    try { await fetch('/api/logout', { method: 'POST' }); } finally { window.location.href = '/'; }
+    try { await fetch('/api/logout', { method: 'POST' }); } finally { window.location.href = '/login'; }
 }

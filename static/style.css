@@ -39,10 +39,20 @@
   --font-body:      'Outfit', sans-serif;
   --font-mono:      'Share Tech Mono', monospace;
 
-  /* Legacy compat */
-  --success: var(--zone-green);
-  --danger:  var(--zone-red);
-  --warning: var(--zone-orange);
+  /* Legacy & Intro Compat */
+  --bg-color:           var(--bg-base);
+  --accent-bright:      #5ce6ff;
+  --text-tertiary:      var(--text-muted);
+  --danger:             var(--zone-red);
+  --danger-dim:         var(--zone-red-dim);
+  --warning:            var(--zone-orange);
+  --warning-dim:        var(--zone-orange-dim);
+  --caution:            var(--zone-yellow);
+  --caution-dim:        var(--zone-yellow-dim);
+  --success:            var(--zone-green);
+  --s2:                 var(--bg-card);
+  --card-border:        var(--border-dim);
+  --card-border-strong: var(--border-mid);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
